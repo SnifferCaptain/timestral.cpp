@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="580" viewBox="0 0 1000 580" font-family="Microsoft YaHei, PingFang SC, Noto Sans CJK SC, sans-serif" font-size="14" fill="#1f2933">
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#52606d"/></marker>
+</defs>
+<rect x="0" y="0" width="1000" height="580" fill="#fafbfc"/>
+<text x="500" y="34" text-anchor="middle" font-size="20" font-weight="bold">后端类层次与能力对照</text>
+<rect x="330" y="58" width="340" height="64" rx="6" fill="#e8f1fd" stroke="#4c8bf5" stroke-width="1.5"/>
+<text x="500" y="84.9" text-anchor="middle" font-size="14" font-weight="bold">timestral::Model（utils/model.hpp）</text>
+<text x="500" y="104.9" text-anchor="middle" font-size="13">scale、forward、predictBlock、分页接口</text>
+<rect x="60" y="170" width="400" height="68" rx="6" fill="#ffffff" stroke="#4c8bf5" stroke-width="1.5"/>
+<text x="260" y="198.9" text-anchor="middle" font-size="14" font-weight="bold">Transformer（utils/transformer.hpp）</text>
+<text x="260" y="218.9" text-anchor="middle" font-size="13">公共编排：嵌入、掩码、分页、分位数头</text>
+<rect x="60" y="286" width="190" height="74" rx="6" fill="#e6f6ec" stroke="#3fa66a" stroke-width="1.5"/>
+<text x="155" y="317.9" text-anchor="middle" font-size="14" font-weight="bold">reference::Model</text>
+<text x="155" y="337.9" text-anchor="middle" font-size="13">标量投影、RMS、QKV、注意力</text>
+<rect x="270" y="286" width="190" height="74" rx="6" fill="#e6f6ec" stroke="#3fa66a" stroke-width="1.5"/>
+<text x="365" y="317.9" text-anchor="middle" font-size="14" font-weight="bold">blas::Model</text>
+<text x="365" y="337.9" text-anchor="middle" font-size="13">预打包GEMM与AVX2钩子</text>
+<rect x="540" y="170" width="190" height="190" rx="6" fill="#f1ebfb" stroke="#8b6cd1" stroke-width="1.5"/>
+<text x="635" y="219.9" text-anchor="middle" font-size="14" font-weight="bold">eigen::Model</text>
+<text x="635" y="239.9" text-anchor="middle" font-size="13">独立编排</text>
+<text x="635" y="259.9" text-anchor="middle" font-size="13">有序Eigen投影</text>
+<text x="635" y="279.9" text-anchor="middle" font-size="13">逐元素调用</text>
+<text x="635" y="299.9" text-anchor="middle" font-size="13">reference::kernels</text>
+<text x="635" y="319.9" text-anchor="middle" font-size="13">支持分页增量</text>
+<rect x="770" y="170" width="190" height="190" rx="6" fill="#f1ebfb" stroke="#8b6cd1" stroke-width="1.5"/>
+<text x="865" y="219.9" text-anchor="middle" font-size="14" font-weight="bold">ytensor::Model</text>
+<text x="865" y="239.9" text-anchor="middle" font-size="13">独立编排</text>
+<text x="865" y="259.9" text-anchor="middle" font-size="13">YBLAS投影，有序注意力</text>
+<text x="865" y="279.9" text-anchor="middle" font-size="13">逐元素调用</text>
+<text x="865" y="299.9" text-anchor="middle" font-size="13">reference::kernels</text>
+<text x="865" y="319.9" text-anchor="middle" font-size="13">支持分页增量</text>
+<path d="M420,122 L270,166" fill="none" stroke="#52606d" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M560,122 L635,166" fill="none" stroke="#52606d" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M640,122 L860,166" fill="none" stroke="#52606d" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M190,238 L155,282" fill="none" stroke="#52606d" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M330,238 L365,282" fill="none" stroke="#52606d" stroke-width="1.6" marker-end="url(#arrow)"/>
+<rect x="40" y="378" width="920" height="158" rx="6" fill="#ffffff" stroke="#9aa5b1"/>
+<text x="60" y="400" text-anchor="start" font-size="14" fill="#1f2933" font-weight="bold">后端</text>
+<text x="250" y="400" text-anchor="start" font-size="14" fill="#1f2933" font-weight="bold">分页增量</text>
+<text x="420" y="400" text-anchor="start" font-size="14" fill="#1f2933" font-weight="bold">线程</text>
+<text x="700" y="400" text-anchor="start" font-size="14" fill="#1f2933" font-weight="bold">外部依赖</text>
+<line x1="40" y1="409" x2="960" y2="409" stroke="#e4e7eb"/>
+<text x="60" y="430" text-anchor="start" font-size="14" fill="#1f2933">reference</text>
+<text x="250" y="430" text-anchor="start" font-size="14" fill="#1f2933">支持</text>
+<text x="420" y="430" text-anchor="start" font-size="14" fill="#1f2933">固定单线程</text>
+<text x="700" y="430" text-anchor="start" font-size="14" fill="#1f2933">无</text>
+<line x1="40" y1="439" x2="960" y2="439" stroke="#e4e7eb"/>
+<text x="60" y="460" text-anchor="start" font-size="14" fill="#1f2933">Eigen</text>
+<text x="250" y="460" text-anchor="start" font-size="14" fill="#1f2933">支持</text>
+<text x="420" y="460" text-anchor="start" font-size="14" fill="#1f2933">Settings.threads，OpenMP</text>
+<text x="700" y="460" text-anchor="start" font-size="14" fill="#1f2933">Eigen 3.4.0头文件</text>
+<line x1="40" y1="469" x2="960" y2="469" stroke="#e4e7eb"/>
+<text x="60" y="490" text-anchor="start" font-size="14" fill="#1f2933">ytensor</text>
+<text x="250" y="490" text-anchor="start" font-size="14" fill="#1f2933">支持</text>
+<text x="420" y="490" text-anchor="start" font-size="14" fill="#1f2933">Settings.threads，OpenMP</text>
+<text x="700" y="490" text-anchor="start" font-size="14" fill="#1f2933">ytensor 0.14单头</text>
+<line x1="40" y1="499" x2="960" y2="499" stroke="#e4e7eb"/>
+<text x="60" y="520" text-anchor="start" font-size="14" fill="#1f2933">BLAS</text>
+<text x="250" y="520" text-anchor="start" font-size="14" fill="#1f2933">支持</text>
+<text x="420" y="520" text-anchor="start" font-size="14" fill="#1f2933">Settings.threads，模型线程池</text>
+<text x="700" y="520" text-anchor="start" font-size="14" fill="#1f2933">无</text>
+</svg>

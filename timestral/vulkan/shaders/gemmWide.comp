@@ -1,0 +1,92 @@
+/*
+ * @file gemmWide.comp
+ * @brief 64×64输出tile与每线程4×4逐K精确投影
+ */
+
+#version 450
+
+layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+
+layout(set = 0, binding = 0, std430) readonly buffer InputBuffer {
+    float values[];
+} inputData;
+
+layout(set = 0, binding = 1, std430) readonly buffer WeightBuffer {
+    float values[];
+} weightData;
+
+// useBias=0不访问bias，可绑定单元素零缓冲
+layout(set = 0, binding = 2, std430) readonly buffer BiasBuffer {
+    float values[];
+} biasData;
+
+layout(set = 0, binding = 3, std430) writeonly buffer OutputBuffer {
+    float values[];
+} outputData;
+
+layout(push_constant) uniform Parameters {
+    uint rows;
+    uint columns;
+    uint inner;
+    uint useBias;
+} parameters;
+
+shared float tileA[64][16];
+shared float tileW[16][65];
+
+void main() {
+    uint x = gl_LocalInvocationID.x;
+    uint y = gl_LocalInvocationID.y;
+    uint threadIndex = y * 16 + x;
+    uint firstRow = gl_WorkGroupID.y * 64;
+    uint firstColumn = gl_WorkGroupID.x * 64;
+    precise float sums[4][4];
+    for (uint i = 0; i < 4; ++i) {
+        for (uint j = 0; j < 4; ++j) {
+            sums[i][j] = 0.0;
+        }
+    }
+    for (uint base = 0; base < parameters.inner;) {
+        uint width = min(16u, parameters.inner - base);
+        for (uint index = threadIndex; index < 1024; index += 256) {
+            uint localRow = index / 16;
+            uint k = index % 16;
+            uint row = firstRow + localRow;
+            uint column = firstColumn + localRow;
+            tileA[localRow][k] = row < parameters.rows && k < width
+                ? inputData.values[row * parameters.inner + base + k] : 0.0;
+            tileW[k][localRow] = column < parameters.columns && k < width
+                ? weightData.values[column * parameters.inner + base + k] : 0.0;
+        }
+        barrier();
+        for (uint k = 0; k < width; ++k) {
+            precise float a[4];
+            precise float w[4];
+            for (uint i = 0; i < 4; ++i) {
+                a[i] = tileA[y + i * 16][k];
+                w[i] = tileW[k][x + i * 16];
+            }
+            for (uint i = 0; i < 4; ++i) {
+                for (uint j = 0; j < 4; ++j) {
+                    precise float product = a[i] * w[j];
+                    sums[i][j] = sums[i][j] + product;
+                }
+            }
+        }
+        barrier();
+        base += width;
+    }
+    for (uint i = 0; i < 4; ++i) {
+        uint row = firstRow + y + i * 16;
+        for (uint j = 0; j < 4; ++j) {
+            uint column = firstColumn + x + j * 16;
+            if (row < parameters.rows && column < parameters.columns) {
+                precise float value = sums[i][j];
+                if (parameters.useBias != 0) {
+                    value = value + biasData.values[column];
+                }
+                outputData.values[row * parameters.columns + column] = value;
+            }
+        }
+    }
+}

@@ -1,0 +1,93 @@
+/*
+ * @file gemmTile.comp
+ * @brief 32×32输出tile、合并权重加载与逐K精确乘加
+ */
+
+#version 450
+
+layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+
+layout(set = 0, binding = 0, std430) readonly buffer InputBuffer {
+    float values[];
+} inputData;
+
+layout(set = 0, binding = 1, std430) readonly buffer WeightBuffer {
+    float values[];
+} weightData;
+
+// useBias=0不访问bias，可绑定单元素零缓冲
+layout(set = 0, binding = 2, std430) readonly buffer BiasBuffer {
+    float values[];
+} biasData;
+
+layout(set = 0, binding = 3, std430) writeonly buffer OutputBuffer {
+    float values[];
+} outputData;
+
+layout(push_constant) uniform Parameters {
+    uint rows;
+    uint columns;
+    uint inner;
+    uint useBias;
+} parameters;
+
+shared float tileA[32][16];
+// 转置到按输出列连续的共享布局，padding避免合并加载后的bank冲突
+shared float tileW[16][33];
+
+void main() {
+    uint x = gl_LocalInvocationID.x;
+    uint y = gl_LocalInvocationID.y;
+    uint firstRow = gl_WorkGroupID.y * 32;
+    uint firstColumn = gl_WorkGroupID.x * 32;
+    precise float sum00 = 0.0;
+    precise float sum01 = 0.0;
+    precise float sum10 = 0.0;
+    precise float sum11 = 0.0;
+
+    for (uint base = 0; base < parameters.inner;) {
+        uint width = min(16u, parameters.inner - base);
+        // 两项加载均沿K连续，尾线程补零且参与所有barrier
+        for (uint section = 0; section < 2; ++section) {
+            uint localRow = y + section * 16;
+            uint row = firstRow + localRow;
+            uint column = firstColumn + localRow;
+            tileA[localRow][x] = row < parameters.rows && x < width
+                ? inputData.values[row * parameters.inner + base + x] : 0.0;
+            tileW[x][localRow] = column < parameters.columns && x < width
+                ? weightData.values[column * parameters.inner + base + x] : 0.0;
+        }
+        barrier();
+        for (uint k = 0; k < width; ++k) {
+            precise float a0 = tileA[y][k];
+            precise float a1 = tileA[y + 16][k];
+            precise float w0 = tileW[k][x];
+            precise float w1 = tileW[k][x + 16];
+            precise float product00 = a0 * w0;
+            precise float product01 = a0 * w1;
+            precise float product10 = a1 * w0;
+            precise float product11 = a1 * w1;
+            sum00 = sum00 + product00;
+            sum01 = sum01 + product01;
+            sum10 = sum10 + product10;
+            sum11 = sum11 + product11;
+        }
+        barrier();
+        base += width;
+    }
+
+    for (uint halfRow = 0; halfRow < 2; ++halfRow) {
+        uint row = firstRow + y + halfRow * 16;
+        for (uint halfColumn = 0; halfColumn < 2; ++halfColumn) {
+            uint column = firstColumn + x + halfColumn * 16;
+            if (row < parameters.rows && column < parameters.columns) {
+                precise float sum = halfRow == 0
+                    ? (halfColumn == 0 ? sum00 : sum01) : (halfColumn == 0 ? sum10 : sum11);
+                if (parameters.useBias != 0) {
+                    sum = sum + biasData.values[column];
+                }
+                outputData.values[row * parameters.columns + column] = sum;
+            }
+        }
+    }
+}

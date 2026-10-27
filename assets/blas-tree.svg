@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 700" width="1180" height="700" font-family="Microsoft YaHei, PingFang SC, Noto Sans CJK SC, sans-serif" font-size="14">
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#555"/></marker></defs>
+<rect x="0" y="0" width="1180" height="700" fill="#fcfcfa"/>
+<text x="590" y="30" text-anchor="middle" font-size="18" fill="#222" font-weight="bold">Timestral专用BLAS后端的优化树（自顶向下）</text>
+<rect x="440" y="50" width="300" height="56" rx="6" fill="#e8eef7" stroke="#666" stroke-width="1.2"/>
+<text x="590" y="74.4" text-anchor="middle" font-size="15" font-weight="bold" fill="#222">一次预测的端到端耗时</text>
+<text x="590" y="92.4" text-anchor="middle" font-size="14" fill="#222">目标：精度不变时降低单线程耗时</text>
+<text x="20" y="184" text-anchor="start" font-size="15" fill="#444" font-weight="bold">请求层</text>
+<rect x="207.5" y="150" width="230" height="58" rx="6" fill="#f3ede2" stroke="#666" stroke-width="1.2"/>
+<text x="322.5" y="175.4" text-anchor="middle" font-size="15" font-weight="bold" fill="#222">共享前缀按row%V广播</text>
+<text x="322.5" y="193.4" text-anchor="middle" font-size="14" fill="#222">不为每个请求复制KV</text>
+<rect x="525" y="150" width="230" height="58" rx="6" fill="#f3ede2" stroke="#666" stroke-width="1.2"/>
+<text x="640" y="175.4" text-anchor="middle" font-size="15" font-weight="bold" fill="#222">纯prefill截止</text>
+<text x="640" y="193.4" text-anchor="middle" font-size="14" fill="#222">最后time轴写完KV即返回</text>
+<rect x="842.5" y="150" width="230" height="58" rx="6" fill="#f3ede2" stroke="#666" stroke-width="1.2"/>
+<text x="957.5" y="175.4" text-anchor="middle" font-size="15" font-weight="bold" fill="#222">调度不变</text>
+<text x="957.5" y="193.4" text-anchor="middle" font-size="14" fill="#222">沿用Service拼批与分页</text>
+<path d="M590,106 V128 H322.5 M590,128 H957.5" fill="none" stroke="#999" stroke-width="1.2"/>
+<line x1="322.5" y1="128" x2="322.5" y2="148" stroke="#555" stroke-width="1.4" marker-end="url(#arrow)"/>
+<line x1="640" y1="128" x2="640" y2="148" stroke="#555" stroke-width="1.4" marker-end="url(#arrow)"/>
+<line x1="957.5" y1="128" x2="957.5" y2="148" stroke="#555" stroke-width="1.4" marker-end="url(#arrow)"/>
+<text x="20" y="294" text-anchor="start" font-size="15" fill="#444" font-weight="bold">模型执行层</text>
+<rect x="144" y="260" width="230" height="58" rx="6" fill="#e9f3e6" stroke="#666" stroke-width="1.2"/>
+<text x="259" y="285.4" text-anchor="middle" font-size="15" font-weight="bold" fill="#222">RMSNorm融进A打包</text>
+<text x="259" y="303.4" text-anchor="middle" font-size="14" fill="#222">逆RMS每行只算一次</text>
+<rect x="398" y="260" width="230" height="58" rx="6" fill="#e9f3e6" stroke="#666" stroke-width="1.2"/>
+<text x="513" y="285.4" text-anchor="middle" font-size="15" font-weight="bold" fill="#222">QKV+gate一次GEMM</text>
+<text x="513" y="303.4" text-anchor="middle" font-size="14" fill="#222">保留4D行宽免拆分</text>
+<rect x="652" y="260" width="230" height="58" rx="6" fill="#e9f3e6" stroke="#666" stroke-width="1.2"/>
+<text x="767" y="285.4" text-anchor="middle" font-size="15" font-weight="bold" fill="#222">RoPE共用sin/cos</text>
+<text x="767" y="303.4" text-anchor="middle" font-size="14" fill="#222">Q与K只算一次三角函数</text>
+<rect x="906" y="260" width="230" height="58" rx="6" fill="#e9f3e6" stroke="#666" stroke-width="1.2"/>
+<text x="1021" y="285.4" text-anchor="middle" font-size="15" font-weight="bold" fill="#222">残差beta=1累加</text>
+<text x="1021" y="303.4" text-anchor="middle" font-size="14" fill="#222">门控原地，SwiGLU紧凑输出</text>
+<path d="M620,208 V234 H259 M620,234 H1021" fill="none" stroke="#999" stroke-width="1.2"/>
+<line x1="259" y1="234" x2="259" y2="258" stroke="#555" stroke-width="1.4" marker-end="url(#arrow)"/>
+<line x1="513" y1="234" x2="513" y2="258" stroke="#555" stroke-width="1.4" marker-end="url(#arrow)"/>
+<line x1="767" y1="234" x2="767" y2="258" stroke="#555" stroke-width="1.4" marker-end="url(#arrow)"/>
+<line x1="1021" y1="234" x2="1021" y2="258" stroke="#555" stroke-width="1.4" marker-end="url(#arrow)"/>
+<text x="20" y="404" text-anchor="start" font-size="15" fill="#444" font-weight="bold">算子层</text>
+<rect x="144" y="370" width="230" height="58" rx="6" fill="#f7e9ea" stroke="#666" stroke-width="1.2"/>
+<text x="259" y="395.4" text-anchor="middle" font-size="15" font-weight="bold" fill="#222">GEMM</text>
+<text x="259" y="413.4" text-anchor="middle" font-size="14" fill="#222">预打包权重与五层分块</text>
+<rect x="398" y="370" width="230" height="58" rx="6" fill="#f7e9ea" stroke="#666" stroke-width="1.2"/>
+<text x="513" y="395.4" text-anchor="middle" font-size="15" font-weight="bold" fill="#222">注意力</text>
+<text x="513" y="413.4" text-anchor="middle" font-size="14" fill="#222">6×64在线softmax</text>
+<rect x="652" y="370" width="230" height="58" rx="6" fill="#f7e9ea" stroke="#666" stroke-width="1.2"/>
+<text x="767" y="395.4" text-anchor="middle" font-size="15" font-weight="bold" fill="#222">掩码块分类</text>
+<text x="767" y="413.4" text-anchor="middle" font-size="14" fill="#222">Empty跳过、Full免展开</text>
+<rect x="906" y="370" width="230" height="58" rx="6" fill="#f7e9ea" stroke="#666" stroke-width="1.2"/>
+<text x="1021" y="395.4" text-anchor="middle" font-size="15" font-weight="bold" fill="#222">逐元素</text>
+<text x="1021" y="413.4" text-anchor="middle" font-size="14" fill="#222">向量exp、sigmoid、SwiGLU</text>
+<path d="M620,318 V344 H259 M620,344 H1021" fill="none" stroke="#999" stroke-width="1.2"/>
+<line x1="259" y1="344" x2="259" y2="368" stroke="#555" stroke-width="1.4" marker-end="url(#arrow)"/>
+<line x1="513" y1="344" x2="513" y2="368" stroke="#555" stroke-width="1.4" marker-end="url(#arrow)"/>
+<line x1="767" y1="344" x2="767" y2="368" stroke="#555" stroke-width="1.4" marker-end="url(#arrow)"/>
+<line x1="1021" y1="344" x2="1021" y2="368" stroke="#555" stroke-width="1.4" marker-end="url(#arrow)"/>
+<text x="20" y="514" text-anchor="start" font-size="15" fill="#444" font-weight="bold">内核层</text>
+<rect x="207.5" y="480" width="230" height="58" rx="6" fill="#efe8f6" stroke="#666" stroke-width="1.2"/>
+<text x="322.5" y="505.4" text-anchor="middle" font-size="15" font-weight="bold" fill="#222">6×16 FMA微内核</text>
+<text x="322.5" y="523.4" text-anchor="middle" font-size="14" fill="#222">12累加+2B+1A</text>
+<rect x="525" y="480" width="230" height="58" rx="6" fill="#efe8f6" stroke="#666" stroke-width="1.2"/>
+<text x="640" y="505.4" text-anchor="middle" font-size="15" font-weight="bold" fill="#222">1至5行窄核</text>
+<text x="640" y="523.4" text-anchor="middle" font-size="14" fill="#222">单链保持累加顺序</text>
+<rect x="842.5" y="480" width="230" height="58" rx="6" fill="#efe8f6" stroke="#666" stroke-width="1.2"/>
+<text x="957.5" y="505.4" text-anchor="middle" font-size="15" font-weight="bold" fill="#222">2^x分解exp</text>
+<text x="957.5" y="523.4" text-anchor="middle" font-size="14" fill="#222">魔数取整与指数位拼接</text>
+<path d="M620,428 V454 H322.5 M620,454 H957.5" fill="none" stroke="#999" stroke-width="1.2"/>
+<line x1="322.5" y1="454" x2="322.5" y2="478" stroke="#555" stroke-width="1.4" marker-end="url(#arrow)"/>
+<line x1="640" y1="454" x2="640" y2="478" stroke="#555" stroke-width="1.4" marker-end="url(#arrow)"/>
+<line x1="957.5" y1="454" x2="957.5" y2="478" stroke="#555" stroke-width="1.4" marker-end="url(#arrow)"/>
+<text x="20" y="624" text-anchor="start" font-size="15" fill="#444" font-weight="bold">指令集层</text>
+<rect x="207.5" y="590" width="230" height="58" rx="6" fill="#e6f2f3" stroke="#666" stroke-width="1.2"/>
+<text x="322.5" y="615.4" text-anchor="middle" font-size="15" font-weight="bold" fill="#222">AVX2+FMA3独立编译单元</text>
+<text x="322.5" y="633.4" text-anchor="middle" font-size="14" fill="#222">只用intrinsic与手写循环</text>
+<rect x="525" y="590" width="230" height="58" rx="6" fill="#e6f2f3" stroke="#666" stroke-width="1.2"/>
+<text x="640" y="615.4" text-anchor="middle" font-size="15" font-weight="bold" fill="#222">CPUID+XGETBV运行期检测</text>
+<text x="640" y="633.4" text-anchor="middle" font-size="14" fill="#222">不满足时回退标量</text>
+<rect x="842.5" y="590" width="230" height="58" rx="6" fill="#e6f2f3" stroke="#666" stroke-width="1.2"/>
+<text x="957.5" y="615.4" text-anchor="middle" font-size="15" font-weight="bold" fill="#222">后续：SSE4.2、NEON</text>
+<text x="957.5" y="633.4" text-anchor="middle" font-size="14" fill="#222">沿用同一打包契约</text>
+<path d="M620,538 V564 H322.5 M620,564 H957.5" fill="none" stroke="#999" stroke-width="1.2"/>
+<line x1="322.5" y1="564" x2="322.5" y2="588" stroke="#555" stroke-width="1.4" marker-end="url(#arrow)"/>
+<line x1="640" y1="564" x2="640" y2="588" stroke="#555" stroke-width="1.4" marker-end="url(#arrow)"/>
+<line x1="957.5" y1="564" x2="957.5" y2="588" stroke="#555" stroke-width="1.4" marker-end="url(#arrow)"/>
+<text x="590" y="680" text-anchor="middle" font-size="14" fill="#555">上层决定哪些计算根本不做，下层决定必须做的计算跑得多快</text>
+</svg>

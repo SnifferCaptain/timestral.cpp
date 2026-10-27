@@ -1,0 +1,44 @@
+# 构建目录：本地任何CMake配置都不入库
+build/
+/build-*/
+/out/
+CMakeUserPresets.json
+compile_commands.json
+
+# 模型权重：仅保留目录占位；仓库不分发权重
+/model/*
+!/model/.gitkeep
+
+# 内部工作区：记录、实验、临时文件不入库
+/.agents/
+
+# 内部工作约定不随仓库分发
+/AGENTS.md
+
+# 许可文件：整体许可为LICENSE，上游全文与Cephes声明放在LICENSES/
+
+# 测试与基准原始数据不入库
+/tests/
+/assets/*.csv
+/assets/*.json
+
+# Python缓存
+__pycache__/
+*.py[cod]
+
+# 编辑器及系统文件
+/.vs/
+/.vscode/
+/.idea/
+.DS_Store
+Thumbs.db
+
+# 编译与链接中间产物
+*.obj
+*.o
+*.exe
+*.pdb
+*.ilk
+*.exp
+*.lib
+*.log

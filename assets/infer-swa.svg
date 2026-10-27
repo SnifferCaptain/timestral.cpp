@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="400" viewBox="0 0 1000 400" font-family="Microsoft YaHei, PingFang SC, Noto Sans CJK SC, sans-serif" font-size="14" fill="#1f2933">
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#52606d"/></marker>
+</defs>
+<rect x="0" y="0" width="1000" height="400" fill="#fafbfc"/>
+<text x="500" y="34" text-anchor="middle" font-size="20" font-weight="bold">实验性冻结前缀与FIFO滑窗（example/streaming.cpp）</text>
+<rect x="50" y="120" width="72" height="50" rx="6" fill="#eef0f2" stroke="#9aa5b1" stroke-width="1.5"/>
+<text x="86" y="140.05" text-anchor="middle" font-size="13">#0</text>
+<text x="86" y="159.05" text-anchor="middle" font-size="12">已淘汰</text>
+<rect x="130" y="120" width="72" height="50" rx="6" fill="#eef0f2" stroke="#9aa5b1" stroke-width="1.5"/>
+<text x="166" y="140.05" text-anchor="middle" font-size="13">#1</text>
+<text x="166" y="159.05" text-anchor="middle" font-size="12">已淘汰</text>
+<rect x="210" y="120" width="72" height="50" rx="6" fill="#eef0f2" stroke="#9aa5b1" stroke-width="1.5"/>
+<text x="246" y="140.05" text-anchor="middle" font-size="13">#2</text>
+<text x="246" y="159.05" text-anchor="middle" font-size="12">已淘汰</text>
+<rect x="290" y="120" width="72" height="50" rx="6" fill="#eef0f2" stroke="#9aa5b1" stroke-width="1.5"/>
+<text x="326" y="140.05" text-anchor="middle" font-size="13">#3</text>
+<text x="326" y="159.05" text-anchor="middle" font-size="12">已淘汰</text>
+<rect x="370" y="120" width="72" height="50" rx="6" fill="#eef0f2" stroke="#9aa5b1" stroke-width="1.5"/>
+<text x="406" y="140.05" text-anchor="middle" font-size="13">#4</text>
+<text x="406" y="159.05" text-anchor="middle" font-size="12">已淘汰</text>
+<rect x="450" y="120" width="72" height="50" rx="6" fill="#e8f1fd" stroke="#4c8bf5" stroke-width="1.5"/>
+<text x="486" y="140.05" text-anchor="middle" font-size="13">#5</text>
+<text x="486" y="159.05" text-anchor="middle" font-size="12">保留页</text>
+<rect x="530" y="120" width="72" height="50" rx="6" fill="#e8f1fd" stroke="#4c8bf5" stroke-width="1.5"/>
+<text x="566" y="140.05" text-anchor="middle" font-size="13">#6</text>
+<text x="566" y="159.05" text-anchor="middle" font-size="12">保留页</text>
+<rect x="610" y="120" width="72" height="50" rx="6" fill="#e8f1fd" stroke="#4c8bf5" stroke-width="1.5"/>
+<text x="646" y="140.05" text-anchor="middle" font-size="13">#7</text>
+<text x="646" y="159.05" text-anchor="middle" font-size="12">保留页</text>
+<rect x="690" y="120" width="72" height="50" rx="6" fill="#e6f6ec" stroke="#3fa66a" stroke-width="1.5"/>
+<text x="726" y="140.05" text-anchor="middle" font-size="13">#8</text>
+<text x="726" y="159.05" text-anchor="middle" font-size="12">新页</text>
+<rect x="770" y="120" width="72" height="50" rx="6" fill="#fdf0e1" stroke="#e8a33d" stroke-width="1.5"/>
+<text x="806" y="140.05" text-anchor="middle" font-size="13">#9</text>
+<text x="806" y="159.05" text-anchor="middle" font-size="12">aux</text>
+<rect x="850" y="120" width="72" height="50" rx="6" fill="#fdf0e1" stroke="#e8a33d" stroke-width="1.5"/>
+<text x="886" y="140.05" text-anchor="middle" font-size="13">#10</text>
+<text x="886" y="159.05" text-anchor="middle" font-size="12">predict</text>
+<path d="M446,184 V196 H766 V184" fill="none" stroke="#4c8bf5" stroke-width="1.6"/>
+<text x="606" y="216" text-anchor="middle" font-size="13" fill="#2b6cb0">页表容量4：持久页只覆盖共同历史</text>
+<path d="M766,184 V196 H926 V184" fill="none" stroke="#e8a33d" stroke-width="1.6"/>
+<text x="846" y="216" text-anchor="middle" font-size="13" fill="#b7791f">尾部不落持久页</text>
+<path d="M406,114 V90" fill="none" stroke="#52606d" stroke-width="1.6" marker-end="url(#arrow)"/>
+<text x="406" y="82" text-anchor="middle" font-size="12" fill="#3e4c59">release + discard最老页</text>
+<path d="M726,90 V114" fill="none" stroke="#52606d" stroke-width="1.6" marker-end="url(#arrow)"/>
+<text x="726" y="82" text-anchor="middle" font-size="12" fill="#3e4c59">appendPages追加</text>
+<text x="50" y="260" text-anchor="start" font-size="14" fill="#1f2933">· positionOffset = begin / patch：保留页沿用原始绝对位置，不重新编号旧KV</text>
+<text x="50" y="290" text-anchor="start" font-size="14" fill="#1f2933">· scaleStates从流起点持续累计，淘汰旧页不回退归一化统计</text>
+<text x="50" y="320" text-anchor="start" font-size="14" fill="#1f2933">· 保留页携带建立时的上下文信息，窗口滑动后不重算，因此与窗口内全量重算不等价</text>
+<text x="50" y="350" text-anchor="start" font-size="14" fill="#1f2933">· predictFrozen读取这些页，只重算aux与predict尾部；默认公开服务不走这条路径</text>
+</svg>

@@ -1,0 +1,110 @@
+name: linux
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: ${{ matrix.compiler }} ${{ matrix.config }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler: [gcc-11, clang-14]
+        config: [std, std20, blas, eigen, ytensor]
+    steps:
+      - uses: actions/checkout@v4
+      - name: 安装与审计版本相同的编译器
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build g++-11 clang-14 libomp-14-dev
+      - name: 配置
+        shell: bash
+        run: |
+          if [ "${{ matrix.compiler }}" = gcc-11 ]; then cxx=g++-11; else cxx=clang++-14; fi
+          case "${{ matrix.config }}" in
+            std) options="" ;;
+            std20) options="-DCMAKE_CXX_STANDARD=20" ;;
+            blas) options="-DTIMESTRAL_USE_BLAS=ON" ;;
+            eigen) options="-DTIMESTRAL_USE_EIGEN=ON" ;;
+            ytensor) options="-DTIMESTRAL_USE_YTENSOR=ON" ;;
+          esac
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_COMPILER="$cxx" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON $options
+      - name: 验证ytensor局部C++20而非全局升级
+        if: matrix.config == 'ytensor'
+        run: |
+          python3 - <<'PY'
+          import json
+          commands = json.load(open('build/compile_commands.json'))
+          model = [r['command'] for r in commands if r['file'].endswith('/ytensor/model.cpp')]
+          assert len(model) == 1 and '-std=c++20' in model[0]
+          assert '-mavx2' in model[0] and '-mfma' in model[0]
+          baseline = [r['command'] for r in commands if r['file'].endswith(('/utils/json.cpp', '/utils/safetensors.cpp', '/ytensor/backend.cpp', '/utils/cpu.cpp', '/utils/path.cpp'))]
+          assert len(baseline) == 5
+          assert all('-std=c++20' not in c and '-mavx2' not in c and '-mfma' not in c for c in baseline)
+          PY
+      - name: 构建库
+        run: cmake --build build --parallel 2
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: linux-${{ matrix.compiler }}-${{ matrix.config }}
+          path: |
+            build/compile_commands.json
+            build/CMakeFiles/CMakeOutput.log
+
+  portability:
+    name: RISC-V交叉构建实际选择Eigen
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build g++-riscv64-linux-gnu
+          cmake -S . -B build-cross -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_COMPILER=riscv64-linux-gnu-g++ -DCMAKE_SYSTEM_NAME=Linux \
+            -DCMAKE_SYSTEM_PROCESSOR=riscv64 -DTIMESTRAL_USE_BLAS=ON \
+            -DTIMESTRAL_BUILD_TESTS=OFF
+          grep -q 'timestral/eigen/backend.cpp' build-cross/build.ninja
+          cmake --build build-cross --target timestral --parallel 2
+
+  vulkan:
+    name: Vulkan ${{ matrix.compiler }} shader编译与离线目录校验
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler: [GLSLC, GLSLANGVALIDATOR]
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build libvulkan-dev glslc glslang-tools spirv-tools
+      - name: 编译所有普通与预算shader及内核库
+        run: |
+          cmake -S . -B build-vulkan -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DTIMESTRAL_BUILD_VULKAN_KERNELS=ON \
+            -DTIMESTRAL_VULKAN_SHADER_COMPILER_KIND=${{ matrix.compiler }}
+          cmake --build build-vulkan --target timestralVulkanKernels --parallel 2
+      - name: 完整离线目录不要求shader编译器
+        run: |
+          cmake -S . -B build-offline -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DTIMESTRAL_BUILD_VULKAN_KERNELS=ON \
+            -DTIMESTRAL_VULKAN_SPV_DIR="$PWD/build-vulkan/timestral/vulkan/shaders" \
+            -DTIMESTRAL_VULKAN_SHADER_COMPILER=/nonexistent/compiler
+          cmake --build build-offline --target timestralVulkanKernels --parallel 2
+      - name: 缺少预算shader的离线目录必须拒绝
+        run: |
+          mkdir incomplete
+          cp build-vulkan/timestral/vulkan/shaders/gemm.spv incomplete/
+          if cmake -S . -B build-incomplete -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DTIMESTRAL_BUILD_VULKAN_KERNELS=ON \
+            -DTIMESTRAL_VULKAN_SPV_DIR="$PWD/incomplete"; then
+            echo "Incomplete SPIR-V directory was incorrectly accepted" >&2
+            exit 1
+          fi

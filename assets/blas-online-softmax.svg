@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 395" width="940" height="395" font-family="Microsoft YaHei, PingFang SC, Noto Sans CJK SC, sans-serif" font-size="14">
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#555"/></marker></defs>
+<rect x="0" y="0" width="940" height="395" fill="#fcfcfa"/>
+<text x="470" y="30" text-anchor="middle" font-size="18" fill="#222" font-weight="bold">6×64块在线softmax：每行只保留(m, l, O)</text>
+<rect x="60" y="60" width="170" height="44" rx="6" fill="#e8eef7" stroke="#666" stroke-width="1.2"/>
+<text x="145" y="78.4" text-anchor="middle" font-size="14" fill="#222">键块0（64个键）</text>
+<text x="145" y="96.4" text-anchor="middle" font-size="14" fill="#222">S = Q·Kᵀ / √d</text>
+<line x1="145" y1="104" x2="145" y2="140" stroke="#555" stroke-width="1.4" marker-end="url(#arrow)"/>
+<rect x="60" y="142" width="170" height="70" rx="6" fill="#e9f3e6" stroke="#666" stroke-width="1.2"/>
+<text x="145" y="164.4" text-anchor="middle" font-size="14" fill="#222">m' = max(m, max S)</text>
+<text x="145" y="182.4" text-anchor="middle" font-size="14" fill="#222">α = exp(m − m')</text>
+<text x="145" y="200.4" text-anchor="middle" font-size="14" fill="#222">l' = α·l + Σexp(S − m')</text>
+<line x1="145" y1="212" x2="145" y2="246" stroke="#555" stroke-width="1.4" marker-end="url(#arrow)"/>
+<rect x="60" y="248" width="170" height="44" rx="6" fill="#f4dcb8" stroke="#666" stroke-width="1.2"/>
+<text x="145" y="266.4" text-anchor="middle" font-size="14" fill="#222">O' = α·O + P·V</text>
+<text x="145" y="284.4" text-anchor="middle" font-size="14" fill="#222">P按[键][6]写成A面板</text>
+<line x1="230" y1="170" x2="268" y2="170" stroke="#999" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+<rect x="270" y="60" width="170" height="44" rx="6" fill="#e8eef7" stroke="#666" stroke-width="1.2"/>
+<text x="355" y="78.4" text-anchor="middle" font-size="14" fill="#222">键块1（64个键）</text>
+<text x="355" y="96.4" text-anchor="middle" font-size="14" fill="#222">S = Q·Kᵀ / √d</text>
+<line x1="355" y1="104" x2="355" y2="140" stroke="#555" stroke-width="1.4" marker-end="url(#arrow)"/>
+<rect x="270" y="142" width="170" height="70" rx="6" fill="#e9f3e6" stroke="#666" stroke-width="1.2"/>
+<text x="355" y="164.4" text-anchor="middle" font-size="14" fill="#222">m' = max(m, max S)</text>
+<text x="355" y="182.4" text-anchor="middle" font-size="14" fill="#222">α = exp(m − m')</text>
+<text x="355" y="200.4" text-anchor="middle" font-size="14" fill="#222">l' = α·l + Σexp(S − m')</text>
+<line x1="355" y1="212" x2="355" y2="246" stroke="#555" stroke-width="1.4" marker-end="url(#arrow)"/>
+<rect x="270" y="248" width="170" height="44" rx="6" fill="#f4dcb8" stroke="#666" stroke-width="1.2"/>
+<text x="355" y="266.4" text-anchor="middle" font-size="14" fill="#222">O' = α·O + P·V</text>
+<text x="355" y="284.4" text-anchor="middle" font-size="14" fill="#222">P按[键][6]写成A面板</text>
+<line x1="440" y1="170" x2="478" y2="170" stroke="#999" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+<rect x="480" y="60" width="170" height="44" rx="6" fill="#eeeeee" stroke="#666" stroke-width="1.2"/>
+<text x="565" y="78.4" text-anchor="middle" font-size="14" fill="#222">键块2（64个键）</text>
+<text x="565" y="96.4" text-anchor="middle" font-size="14" fill="#222">Empty：整块跳过</text>
+<line x1="565" y1="104" x2="565" y2="140" stroke="#555" stroke-width="1.4" marker-end="url(#arrow)"/>
+<rect x="480" y="142" width="170" height="70" rx="6" fill="#f5f5f5" stroke="#666" stroke-width="1.2"/>
+<text x="565" y="173.4" text-anchor="middle" font-size="14" fill="#222">状态不变</text>
+<text x="565" y="191.4" text-anchor="middle" font-size="14" fill="#222">不算QK也不算PV</text>
+<line x1="650" y1="170" x2="688" y2="170" stroke="#999" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+<rect x="690" y="60" width="170" height="44" rx="6" fill="#e8eef7" stroke="#666" stroke-width="1.2"/>
+<text x="775" y="78.4" text-anchor="middle" font-size="14" fill="#222">键块3（64个键）</text>
+<text x="775" y="96.4" text-anchor="middle" font-size="14" fill="#222">S = Q·Kᵀ / √d</text>
+<line x1="775" y1="104" x2="775" y2="140" stroke="#555" stroke-width="1.4" marker-end="url(#arrow)"/>
+<rect x="690" y="142" width="170" height="70" rx="6" fill="#e9f3e6" stroke="#666" stroke-width="1.2"/>
+<text x="775" y="164.4" text-anchor="middle" font-size="14" fill="#222">m' = max(m, max S)</text>
+<text x="775" y="182.4" text-anchor="middle" font-size="14" fill="#222">α = exp(m − m')</text>
+<text x="775" y="200.4" text-anchor="middle" font-size="14" fill="#222">l' = α·l + Σexp(S − m')</text>
+<line x1="775" y1="212" x2="775" y2="246" stroke="#555" stroke-width="1.4" marker-end="url(#arrow)"/>
+<rect x="690" y="248" width="170" height="44" rx="6" fill="#f4dcb8" stroke="#666" stroke-width="1.2"/>
+<text x="775" y="266.4" text-anchor="middle" font-size="14" fill="#222">O' = α·O + P·V</text>
+<text x="775" y="284.4" text-anchor="middle" font-size="14" fill="#222">P按[键][6]写成A面板</text>
+<text x="470" y="330" text-anchor="middle" font-size="14" fill="#222">最后一块之后 O / l 即为输出；整行屏蔽时 l = 0，输出置0而不产生 inf − inf</text>
+<text x="470" y="354" text-anchor="middle" font-size="13" fill="#555">QK与PV都复用GEMM微内核：Q按[d][6]打包为A，K按[d][16]、V按[64键][16维]打包为B</text>
+<text x="470" y="376" text-anchor="middle" font-size="13" fill="#555">工作区为6×64的分数与6×headDim的累加器，不物化L×L注意力矩阵</text>
+</svg>

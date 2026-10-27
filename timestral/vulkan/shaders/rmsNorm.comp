@@ -1,0 +1,75 @@
+/*
+ * @file rmsNorm.comp
+ * @brief FP32逐行均方根归一化与通道缩放
+ */
+
+#version 450
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0, std430) readonly buffer InputBuffer {
+    float values[];
+} inputData;
+
+layout(set = 0, binding = 1, std430) readonly buffer ScaleBuffer {
+    float values[];
+} scaleData;
+
+layout(set = 0, binding = 2, std430) writeonly buffer OutputBuffer {
+    float values[];
+} outputData;
+
+layout(push_constant) uniform Parameters {
+    uint rows;
+    uint width;
+    float epsilon;
+} parameters;
+
+shared float rowSums[64];
+
+void main() {
+    uint row = gl_WorkGroupID.y * gl_NumWorkGroups.x + gl_WorkGroupID.x;
+    uint lane = gl_LocalInvocationID.x;
+    if (row >= parameters.rows || parameters.width == 0) {
+        return;
+    }
+
+    // host保证rows乘width及buffer总size可由uint表示
+    uint rowOffset = row * parameters.width;
+    precise float sum = 0.0;
+    for (uint column = lane; column < parameters.width;) {
+        uint index = rowOffset + column;
+        float value = inputData.values[index];
+        precise float square = value * value;
+        sum = sum + square;
+        if (parameters.width - column <= 64) {
+            break;
+        }
+        column += 64;
+    }
+    rowSums[lane] = sum;
+    barrier();
+
+    for (uint stride = 32; stride > 0; stride >>= 1) {
+        if (lane < stride) {
+            precise float combined = rowSums[lane] + rowSums[lane + stride];
+            rowSums[lane] = combined;
+        }
+        barrier();
+    }
+
+    precise float meanSquare = rowSums[0] / float(parameters.width);
+    precise float stabilized = meanSquare + parameters.epsilon;
+    precise float inverse = inversesqrt(stabilized);
+    for (uint column = lane; column < parameters.width;) {
+        uint index = rowOffset + column;
+        // 保留先乘inverse再乘scale的FP32计算顺序
+        precise float normalized = inputData.values[index] * inverse;
+        precise float scaled = normalized * scaleData.values[column];
+        outputData.values[index] = scaled;
+        if (parameters.width - column <= 64) {
+            break;
+        }
+        column += 64;
+    }
+}

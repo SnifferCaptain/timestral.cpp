@@ -1,0 +1,77 @@
+/*
+ * @file attentionDecodeMerge.comp
+ * @brief 长KV分片max分母与PV的稳定FP32合并
+ */
+
+#version 450
+
+layout(local_size_x = 64) in;
+layout(set = 0, binding = 0, std430) readonly buffer Partial { float values[]; } partialData;
+layout(set = 0, binding = 1, std430) writeonly buffer Output { float values[]; } result;
+layout(push_constant) uniform Parameters {
+    uint rows;
+    uint heads;
+    uint splits;
+} p;
+
+shared float reduction[64];
+
+void main() {
+    uint group = gl_WorkGroupID.y * gl_NumWorkGroups.x + gl_WorkGroupID.x;
+    if (group >= p.rows * p.heads) {
+        return;
+    }
+    uint lane = gl_LocalInvocationID.x;
+    uint first = group * p.splits * 66;
+    precise float maximum = uintBitsToFloat(0xff800000u);
+    for (uint split = lane; split < p.splits; split += 64) {
+        uint offset = first + split * 66;
+        if (partialData.values[offset + 65] > 0.0) {
+            maximum = max(maximum, partialData.values[offset + 64]);
+        }
+    }
+    reduction[lane] = maximum;
+    barrier();
+    for (uint stride = 32; stride > 0; stride >>= 1) {
+        if (lane < stride) {
+            reduction[lane] = max(reduction[lane], reduction[lane + stride]);
+        }
+        barrier();
+    }
+    maximum = reduction[0];
+    if (isinf(maximum)) {
+        result.values[group * 64 + lane] = 0.0;
+        return;
+    }
+    // 读完归约结果后才能覆盖共享数组，避免lane0提前写回影响其它lane
+    barrier();
+    precise float denominator = 0.0;
+    for (uint split = lane; split < p.splits; split += 64) {
+        uint offset = first + split * 66;
+        if (partialData.values[offset + 65] > 0.0) {
+            precise float alpha = exp(partialData.values[offset + 64] - maximum);
+            precise float term = partialData.values[offset + 65] * alpha;
+            denominator = denominator + term;
+        }
+    }
+    reduction[lane] = denominator;
+    barrier();
+    for (uint stride = 32; stride > 0; stride >>= 1) {
+        if (lane < stride) {
+            precise float combined = reduction[lane] + reduction[lane + stride];
+            reduction[lane] = combined;
+        }
+        barrier();
+    }
+    denominator = reduction[0];
+    precise float accumulator = 0.0;
+    for (uint split = 0; split < p.splits; ++split) {
+        uint offset = first + split * 66;
+        if (partialData.values[offset + 65] > 0.0) {
+            precise float alpha = exp(partialData.values[offset + 64] - maximum);
+            precise float term = partialData.values[offset + lane] * alpha;
+            accumulator = accumulator + term;
+        }
+    }
+    result.values[group * 64 + lane] = denominator > 0.0 ? accumulator / denominator : 0.0;
+}

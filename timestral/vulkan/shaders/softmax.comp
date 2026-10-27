@@ -1,0 +1,97 @@
+/*
+ * @file softmax.comp
+ * @brief 支持负无穷掩码的FP32逐行稳定softmax
+ */
+
+#version 450
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0, std430) readonly buffer InputBuffer {
+    float values[];
+} inputData;
+
+layout(set = 0, binding = 1, std430) writeonly buffer OutputBuffer {
+    float values[];
+} outputData;
+
+layout(push_constant) uniform Parameters {
+    uint rows;
+    uint width;
+} parameters;
+
+shared float rowValues[64];
+
+void main() {
+    uint row = gl_WorkGroupID.y * gl_NumWorkGroups.x + gl_WorkGroupID.x;
+    uint lane = gl_LocalInvocationID.x;
+    if (row >= parameters.rows || parameters.width == 0) {
+        return;
+    }
+
+    // host拒绝NaN与正无穷，并保证rows乘width及buffer总size可由uint表示
+    uint rowOffset = row * parameters.width;
+    float maximum = uintBitsToFloat(0xff800000u);
+    for (uint column = lane; column < parameters.width;) {
+        uint index = rowOffset + column;
+        maximum = max(maximum, inputData.values[index]);
+        if (parameters.width - column <= 64) {
+            break;
+        }
+        column += 64;
+    }
+    rowValues[lane] = maximum;
+    barrier();
+
+    for (uint stride = 32; stride > 0; stride >>= 1) {
+        if (lane < stride) {
+            rowValues[lane] = max(rowValues[lane], rowValues[lane + stride]);
+        }
+        barrier();
+    }
+    maximum = rowValues[0];
+    // 全部线程读取最大值后才能复用shared归约空间
+    barrier();
+
+    // 全负无穷行直接写零，避免负无穷相减产生NaN
+    if (isinf(maximum) && maximum < 0.0) {
+        for (uint column = lane; column < parameters.width;) {
+            uint index = rowOffset + column;
+            outputData.values[index] = 0.0;
+            if (parameters.width - column <= 64) {
+                break;
+            }
+            column += 64;
+        }
+        return;
+    }
+
+    float sum = 0.0;
+    for (uint column = lane; column < parameters.width;) {
+        uint index = rowOffset + column;
+        sum += exp(inputData.values[index] - maximum);
+        if (parameters.width - column <= 64) {
+            break;
+        }
+        column += 64;
+    }
+    rowValues[lane] = sum;
+    barrier();
+
+    for (uint stride = 32; stride > 0; stride >>= 1) {
+        if (lane < stride) {
+            rowValues[lane] += rowValues[lane + stride];
+        }
+        barrier();
+    }
+
+    float denominator = rowValues[0];
+    for (uint column = lane; column < parameters.width;) {
+        uint index = rowOffset + column;
+        outputData.values[index] = exp(inputData.values[index] - maximum) / denominator;
+        if (parameters.width - column <= 64) {
+            break;
+        }
+        column += 64;
+    }
+}

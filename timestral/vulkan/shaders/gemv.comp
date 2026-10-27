@@ -1,0 +1,74 @@
+/*
+ * @file gemv.comp
+ * @brief 窄M合并权重加载与逐K精确投影
+ */
+
+#version 450
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0, std430) readonly buffer InputBuffer {
+    float values[];
+} inputData;
+
+layout(set = 0, binding = 1, std430) readonly buffer WeightBuffer {
+    float values[];
+} weightData;
+
+// useBias=0不访问bias，可绑定单元素零缓冲
+layout(set = 0, binding = 2, std430) readonly buffer BiasBuffer {
+    float values[];
+} biasData;
+
+layout(set = 0, binding = 3, std430) writeonly buffer OutputBuffer {
+    float values[];
+} outputData;
+
+layout(push_constant) uniform Parameters {
+    uint rows;
+    uint columns;
+    uint inner;
+    uint useBias;
+} parameters;
+
+shared float tileInput[16];
+shared float tileWeight[16][17];
+
+void main() {
+    uint row = gl_WorkGroupID.y;
+    if (row >= parameters.rows) {
+        return;
+    }
+    uint lane = gl_LocalInvocationID.x;
+    uint firstColumn = gl_WorkGroupID.x * 16;
+    precise float sum = 0.0;
+    for (uint base = 0; base < parameters.inner;) {
+        uint width = min(16u, parameters.inner - base);
+        if (lane < 16) {
+            tileInput[lane] = lane < width ? inputData.values[row * parameters.inner + base + lane] : 0.0;
+        }
+        for (uint index = lane; index < 256; index += 64) {
+            uint columnIndex = index / 16;
+            uint k = index % 16;
+            uint column = firstColumn + columnIndex;
+            tileWeight[k][columnIndex] = column < parameters.columns && k < width
+                ? weightData.values[column * parameters.inner + base + k] : 0.0;
+        }
+        barrier();
+        if (lane < 16) {
+            for (uint k = 0; k < width; ++k) {
+                precise float product = tileInput[k] * tileWeight[k][lane];
+                sum = sum + product;
+            }
+        }
+        barrier();
+        base += width;
+    }
+    uint column = firstColumn + lane;
+    if (lane < 16 && column < parameters.columns) {
+        if (parameters.useBias != 0) {
+            sum = sum + biasData.values[column];
+        }
+        outputData.values[row * parameters.columns + column] = sum;
+    }
+}

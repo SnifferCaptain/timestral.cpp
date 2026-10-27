@@ -1,0 +1,67 @@
+/*
+ * @file rmsNormOrdered.comp
+ * @brief FP32逐行均方根归一化与通道缩放
+ */
+
+#version 450
+#extension GL_GOOGLE_include_directive : require
+
+#include "preciseMath.glsl"
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0, std430) readonly buffer InputBuffer {
+    float values[];
+} inputData;
+
+layout(set = 0, binding = 1, std430) readonly buffer ScaleBuffer {
+    float values[];
+} scaleData;
+
+layout(set = 0, binding = 2, std430) writeonly buffer OutputBuffer {
+    float values[];
+} outputData;
+
+layout(push_constant) uniform Parameters {
+    uint rows;
+    uint width;
+    float epsilon;
+} parameters;
+
+shared float rowSums[64];
+
+void main() {
+    uint row = gl_WorkGroupID.y * gl_NumWorkGroups.x + gl_WorkGroupID.x;
+    uint lane = gl_LocalInvocationID.x;
+    if (row >= parameters.rows || parameters.width == 0) {
+        return;
+    }
+
+    // host保证rows乘width及buffer总size可由uint表示
+    uint rowOffset = row * parameters.width;
+    if (lane == 0) {
+        precise float sum = 0.0;
+        for (uint column = 0; column < parameters.width; ++column) {
+            precise float value = inputData.values[rowOffset + column];
+            precise float square = value * value;
+            sum = sum + square;
+        }
+        rowSums[0] = sum;
+    }
+    barrier();
+
+    precise float meanSquare = divideOrdered(rowSums[0], float(parameters.width));
+    precise float stabilized = meanSquare + parameters.epsilon;
+    precise float inverse = divideOrdered(1.0, sqrtOrdered(stabilized));
+    for (uint column = lane; column < parameters.width;) {
+        uint index = rowOffset + column;
+        // 保留先乘inverse再乘scale的FP32计算顺序
+        precise float normalized = inputData.values[index] * inverse;
+        precise float scaled = normalized * scaleData.values[column];
+        outputData.values[index] = scaled;
+        if (parameters.width - column <= 64) {
+            break;
+        }
+        column += 64;
+    }
+}

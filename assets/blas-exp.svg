@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 465" width="940" height="465" font-family="Microsoft YaHei, PingFang SC, Noto Sans CJK SC, sans-serif" font-size="14">
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#555"/></marker></defs>
+<rect x="0" y="0" width="940" height="465" fill="#fcfcfa"/>
+<text x="470" y="30" text-anchor="middle" font-size="18" fill="#222" font-weight="bold">e^x = 2^n · 2^f：把指数函数拆成指数位和一个短多项式</text>
+<rect x="40" y="55" width="110" height="46" rx="6" fill="#e8eef7" stroke="#666" stroke-width="1.2"/>
+<text x="95" y="83.4" text-anchor="middle" font-size="15" font-weight="bold" fill="#222">截断</text>
+<rect x="165" y="55" width="290" height="46" rx="6" fill="#ffffff" stroke="#666" stroke-width="1.2"/>
+<text x="310" y="83.4" text-anchor="middle" font-size="14" fill="#222">x ∈ [−103.97, 88.72]</text>
+<text x="470" y="83" text-anchor="start" font-size="13" fill="#444">两端经运算自然得到0与+inf</text>
+<line x1="95" y1="101" x2="95" y2="117" stroke="#555" stroke-width="1.4" marker-end="url(#arrow)"/>
+<rect x="40" y="117" width="110" height="46" rx="6" fill="#e8eef7" stroke="#666" stroke-width="1.2"/>
+<text x="95" y="145.4" text-anchor="middle" font-size="15" font-weight="bold" fill="#222">换底</text>
+<rect x="165" y="117" width="290" height="46" rx="6" fill="#ffffff" stroke="#666" stroke-width="1.2"/>
+<text x="310" y="145.4" text-anchor="middle" font-size="14" fill="#222">t = x·log2e</text>
+<text x="470" y="145" text-anchor="start" font-size="13" fill="#444">魔数1.5·2^23加法完成取整</text>
+<line x1="95" y1="163" x2="95" y2="179" stroke="#555" stroke-width="1.4" marker-end="url(#arrow)"/>
+<rect x="40" y="179" width="110" height="46" rx="6" fill="#e8eef7" stroke="#666" stroke-width="1.2"/>
+<text x="95" y="207.4" text-anchor="middle" font-size="15" font-weight="bold" fill="#222">拆分</text>
+<rect x="165" y="179" width="290" height="46" rx="6" fill="#ffffff" stroke="#666" stroke-width="1.2"/>
+<text x="310" y="207.4" text-anchor="middle" font-size="14" fill="#222">n = round(t)，f = t − n</text>
+<text x="470" y="207" text-anchor="start" font-size="13" fill="#444">FMA单次舍入，log2e高低两段补偿</text>
+<line x1="95" y1="225" x2="95" y2="241" stroke="#555" stroke-width="1.4" marker-end="url(#arrow)"/>
+<rect x="40" y="241" width="110" height="46" rx="6" fill="#e8eef7" stroke="#666" stroke-width="1.2"/>
+<text x="95" y="269.4" text-anchor="middle" font-size="15" font-weight="bold" fill="#222">多项式</text>
+<rect x="165" y="241" width="290" height="46" rx="6" fill="#ffffff" stroke="#666" stroke-width="1.2"/>
+<text x="310" y="269.4" text-anchor="middle" font-size="14" fill="#222">2^f ≈ 1 + f·P(f)</text>
+<text x="470" y="269" text-anchor="start" font-size="13" fill="#444">|f| ≤ 0.5，Cephes exp2f 6阶</text>
+<line x1="95" y1="287" x2="95" y2="303" stroke="#555" stroke-width="1.4" marker-end="url(#arrow)"/>
+<rect x="40" y="303" width="110" height="46" rx="6" fill="#e8eef7" stroke="#666" stroke-width="1.2"/>
+<text x="95" y="331.4" text-anchor="middle" font-size="15" font-weight="bold" fill="#222">拼指数</text>
+<rect x="165" y="303" width="290" height="46" rx="6" fill="#ffffff" stroke="#666" stroke-width="1.2"/>
+<text x="310" y="331.4" text-anchor="middle" font-size="14" fill="#222">2^n = (n+127) &lt;&lt; 23</text>
+<text x="470" y="331" text-anchor="start" font-size="13" fill="#444">n拆两半相乘，覆盖次正规数</text>
+<text x="40" y="373" text-anchor="start" font-size="14" fill="#222" font-weight="bold">IEEE754 float的位布局：</text>
+<rect x="40" y="385" width="30" height="30" fill="#f4dcb8" stroke="#666"/>
+<text x="55" y="405" text-anchor="middle" font-size="14" fill="#222">s</text>
+<rect x="70" y="385" width="240" height="30" fill="#cfe0f3" stroke="#666"/>
+<text x="190" y="405" text-anchor="middle" font-size="14" fill="#222">exponent 8位 = n + 127</text>
+<rect x="310" y="385" width="560" height="30" fill="#eeeeee" stroke="#666"/>
+<text x="590" y="405" text-anchor="middle" font-size="14" fill="#222">mantissa 23位 = 0</text>
+<text x="40" y="441" text-anchor="start" font-size="13" fill="#555">整数n左移23位再按位解释成float，恰好就是2^n，只需一次整数加法和一次移位</text>
+</svg>

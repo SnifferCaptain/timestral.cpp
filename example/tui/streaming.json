@@ -1,0 +1,52 @@
+{
+    "window": 512,
+    "horizon": 512,
+    "advance": 32,
+    "width": 96,
+    "height": 18,
+    "interval": 0.01,
+    "seed": 42,
+    "color": false,
+    "channels": [
+        {
+            "terms": [
+                {
+                    "a": 1,
+                    "b": 4.908738521,
+                    "c": 0,
+                    "d": 0
+                },
+                {
+                    "a": 0.3,
+                    "b": 9.817477042,
+                    "c": 0,
+                    "d": 0.4
+                }
+            ],
+            "noise": 0.03,
+            "bias": 0,
+            "sampleHz": 100,
+            "sampleJitter": 0
+        },
+        {
+            "terms": [
+                {
+                    "a": 1,
+                    "b": 4.908738521,
+                    "c": 0,
+                    "d": 0
+                },
+                {
+                    "a": 0.2,
+                    "b": 7.363107782,
+                    "c": 0.01,
+                    "d": 1.2
+                }
+            ],
+            "noise": 0.03,
+            "bias": 3,
+            "sampleHz": 100,
+            "sampleJitter": 0
+        }
+    ]
+}

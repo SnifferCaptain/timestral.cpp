@@ -1,0 +1,47 @@
+/*
+ * @file attentionValues.comp
+ * @brief 稳定softmax后的逐键FP32加权求和
+ */
+
+#version 450
+
+layout(local_size_x = 64) in;
+
+layout(set = 0, binding = 0, std430) readonly buffer Probabilities { float values[]; } probs;
+layout(set = 0, binding = 1, std430) readonly buffer Values { float values[]; } vals;
+layout(set = 0, binding = 2, std430) writeonly buffer Output { float values[]; } result;
+layout(push_constant) uniform Parameters {
+    uint rows;
+    uint count;
+    uint base;
+    uint encoded;
+    uint contextPatches;
+    uint heads;
+    uint headDim;
+    uint covariates;
+    uint isTime;
+} p;
+
+void main() {
+    uint index = gl_GlobalInvocationID.y * gl_NumWorkGroups.x * gl_WorkGroupSize.x + gl_GlobalInvocationID.x;
+    uint dim = p.heads * p.headDim;
+    if (index >= p.rows * p.count * dim) {
+        return;
+    }
+    uint token = index / dim;
+    uint row = token / p.count;
+    uint localSlot = token % p.count;
+    uint head = (index % dim) / p.headDim;
+    uint j = index % p.headDim;
+    uint keyCount = p.isTime != 0 ? p.base + p.count : p.rows;
+    uint scoreOffset = (token * p.heads + head) * keyCount;
+    precise float sum = 0.0;
+    for (uint key = 0; key < keyCount; ++key) {
+        uint valueOffset = p.isTime != 0
+            ? (row * keyCount + key) * dim + head * p.headDim + j
+            : (key * p.count + localSlot) * dim + head * p.headDim + j;
+        precise float product = probs.values[scoreOffset + key] * vals.values[valueOffset];
+        sum = sum + product;
+    }
+    result.values[index] = sum;
+}

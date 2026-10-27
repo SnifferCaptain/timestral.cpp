@@ -1,0 +1,41 @@
+/*
+ * @file elementwiseOrdered.comp
+ * @brief 残差、sigmoid门控及上游顺序的SwiGLU
+ */
+
+#version 450
+#extension GL_GOOGLE_include_directive : require
+
+#include "preciseMath.glsl"
+
+layout(local_size_x = 64) in;
+
+layout(set = 0, binding = 0, std430) readonly buffer First { float values[]; } first;
+layout(set = 0, binding = 1, std430) readonly buffer Second { float values[]; } second;
+layout(set = 0, binding = 2, std430) writeonly buffer Output { float values[]; } result;
+layout(push_constant) uniform Parameters {
+    uint count;
+    uint width;
+    uint mode;
+} p;
+
+void main() {
+    uint index = gl_GlobalInvocationID.y * gl_NumWorkGroups.x * gl_WorkGroupSize.x + gl_GlobalInvocationID.x;
+    if (index >= p.count) {
+        return;
+    }
+    precise float value = first.values[index];
+    if (p.mode == 0) {
+        value = value + second.values[index];
+    } else if (p.mode == 1) {
+        precise float gate = divideOrdered(1.0, 1.0 + expOrdered(-second.values[index]));
+        value = value * gate;
+    } else {
+        uint row = index / p.width;
+        uint column = index % p.width;
+        float activated = first.values[row * 2 * p.width + p.width + column];
+        precise float silu = divideOrdered(activated, 1.0 + expOrdered(-activated));
+        value = first.values[row * 2 * p.width + column] * silu;
+    }
+    result.values[index] = value;
+}

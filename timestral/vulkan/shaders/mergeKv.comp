@@ -1,0 +1,32 @@
+/*
+ * @file mergeKv.comp
+ * @brief 按行拼接只读页前缀与本轮KV尾部
+ */
+
+#version 450
+
+layout(local_size_x = 64) in;
+
+layout(set = 0, binding = 0, std430) readonly buffer Prefix { float values[]; } prefix;
+layout(set = 0, binding = 1, std430) readonly buffer Tail { float values[]; } tail;
+layout(set = 0, binding = 2, std430) writeonly buffer Output { float values[]; } result;
+layout(push_constant) uniform Parameters {
+    uint rows;
+    uint count;
+    uint base;
+    uint dim;
+} p;
+
+void main() {
+    uint index = gl_GlobalInvocationID.y * gl_NumWorkGroups.x * gl_WorkGroupSize.x + gl_GlobalInvocationID.x;
+    uint slots = p.base + p.count;
+    if (index >= p.rows * slots * p.dim) {
+        return;
+    }
+    uint row = index / (slots * p.dim);
+    uint slot = (index / p.dim) % slots;
+    uint j = index % p.dim;
+    result.values[index] = slot < p.base
+        ? prefix.values[(row * p.base + slot) * p.dim + j]
+        : tail.values[(row * p.count + slot - p.base) * p.dim + j];
+}

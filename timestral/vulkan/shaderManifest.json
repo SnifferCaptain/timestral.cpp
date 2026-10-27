@@ -1,0 +1,3424 @@
+{
+    "abiVersion": 1,
+    "targetEnvironment": "vulkan1.1",
+    "spirvVersion": "1.3",
+    "precision": "FP32",
+    "entryPoint": "main",
+    "requiredCapabilities": [
+        "Shader"
+    ],
+    "descriptorSet": 0,
+    "bufferLayout": "std430 contiguous FP32; metadata contains exactly representable compressed integer values",
+    "minimumDeviceLimits": {
+        "maxComputeWorkGroupInvocations": 256,
+        "maxComputeWorkGroupSize": [
+            64,
+            16,
+            1
+        ],
+        "maxComputeSharedMemorySize": 4160,
+        "maxPushConstantsSize": 36,
+        "maxPerStageDescriptorStorageBuffers": 5,
+        "maxDescriptorSetStorageBuffers": 5
+    },
+    "linearDispatch": "For G one-dimensional groups use x=min(G,65535), y=ceil(G/x), z=1; flatten y before x. gemm uses its native 2D grid. gemmTile uses ceil(columns/32),ceil(rows/32),1.",
+    "contract": "gpuKernels.md",
+    "shaders": [
+        {
+            "name": "gemm",
+            "module": "gemm.spv",
+            "localSize": [
+                16,
+                16,
+                1
+            ],
+            "bindings": [
+                {
+                    "binding": 0,
+                    "name": "input",
+                    "access": "read"
+                },
+                {
+                    "binding": 1,
+                    "name": "weight",
+                    "access": "read"
+                },
+                {
+                    "binding": 2,
+                    "name": "bias",
+                    "access": "read"
+                },
+                {
+                    "binding": 3,
+                    "name": "output",
+                    "access": "write"
+                }
+            ],
+            "pushBytes": 16,
+            "push": [
+                {
+                    "name": "rows",
+                    "type": "uint32",
+                    "offset": 0
+                },
+                {
+                    "name": "columns",
+                    "type": "uint32",
+                    "offset": 4
+                },
+                {
+                    "name": "inner",
+                    "type": "uint32",
+                    "offset": 8
+                },
+                {
+                    "name": "useBias",
+                    "type": "uint32",
+                    "offset": 12
+                }
+            ]
+        },
+        {
+            "name": "gemmTile",
+            "module": "gemmTile.spv",
+            "localSize": [
+                16,
+                16,
+                1
+            ],
+            "bindings": [
+                {
+                    "binding": 0,
+                    "name": "input",
+                    "access": "read"
+                },
+                {
+                    "binding": 1,
+                    "name": "weight",
+                    "access": "read"
+                },
+                {
+                    "binding": 2,
+                    "name": "bias",
+                    "access": "read"
+                },
+                {
+                    "binding": 3,
+                    "name": "output",
+                    "access": "write"
+                }
+            ],
+            "pushBytes": 16,
+            "push": [
+                {
+                    "name": "rows",
+                    "type": "uint32",
+                    "offset": 0
+                },
+                {
+                    "name": "columns",
+                    "type": "uint32",
+                    "offset": 4
+                },
+                {
+                    "name": "inner",
+                    "type": "uint32",
+                    "offset": 8
+                },
+                {
+                    "name": "useBias",
+                    "type": "uint32",
+                    "offset": 12
+                }
+            ]
+        },
+        {
+            "name": "rmsNorm",
+            "module": "rmsNorm.spv",
+            "localSize": [
+                64,
+                1,
+                1
+            ],
+            "bindings": [
+                {
+                    "binding": 0,
+                    "name": "input",
+                    "access": "read"
+                },
+                {
+                    "binding": 1,
+                    "name": "scale",
+                    "access": "read"
+                },
+                {
+                    "binding": 2,
+                    "name": "output",
+                    "access": "write"
+                }
+            ],
+            "pushBytes": 12,
+            "push": [
+                {
+                    "name": "rows",
+                    "type": "uint32",
+                    "offset": 0
+                },
+                {
+                    "name": "width",
+                    "type": "uint32",
+                    "offset": 4
+                },
+                {
+                    "name": "epsilon",
+                    "type": "float32",
+                    "offset": 8
+                }
+            ]
+        },
+        {
+            "name": "softmax",
+            "module": "softmax.spv",
+            "localSize": [
+                64,
+                1,
+                1
+            ],
+            "bindings": [
+                {
+                    "binding": 0,
+                    "name": "input",
+                    "access": "read"
+                },
+                {
+                    "binding": 1,
+                    "name": "output",
+                    "access": "write"
+                }
+            ],
+            "pushBytes": 8,
+            "push": [
+                {
+                    "name": "rows",
+                    "type": "uint32",
+                    "offset": 0
+                },
+                {
+                    "name": "width",
+                    "type": "uint32",
+                    "offset": 4
+                }
+            ]
+        },
+        {
+            "name": "silu",
+            "module": "silu.spv",
+            "localSize": [
+                64,
+                1,
+                1
+            ],
+            "bindings": [
+                {
+                    "binding": 0,
+                    "name": "input",
+                    "access": "read"
+                },
+                {
+                    "binding": 1,
+                    "name": "output",
+                    "access": "write"
+                }
+            ],
+            "pushBytes": 4,
+            "push": [
+                {
+                    "name": "count",
+                    "type": "uint32",
+                    "offset": 0
+                }
+            ]
+        },
+        {
+            "name": "prepareQkv",
+            "module": "prepareQkv.spv",
+            "localSize": [
+                64,
+                1,
+                1
+            ],
+            "bindings": [
+                {
+                    "binding": 0,
+                    "name": "fused",
+                    "access": "read"
+                },
+                {
+                    "binding": 1,
+                    "name": "rotary",
+                    "access": "read"
+                },
+                {
+                    "binding": 2,
+                    "name": "q",
+                    "access": "write"
+                },
+                {
+                    "binding": 3,
+                    "name": "k",
+                    "access": "write"
+                },
+                {
+                    "binding": 4,
+                    "name": "v",
+                    "access": "write"
+                }
+            ],
+            "pushBytes": 20,
+            "push": [
+                {
+                    "name": "tokens",
+                    "type": "uint32",
+                    "offset": 0
+                },
+                {
+                    "name": "heads",
+                    "type": "uint32",
+                    "offset": 4
+                },
+                {
+                    "name": "headDim",
+                    "type": "uint32",
+                    "offset": 8
+                },
+                {
+                    "name": "ropeDim",
+                    "type": "uint32",
+                    "offset": 12
+                },
+                {
+                    "name": "isTime",
+                    "type": "uint32",
+                    "offset": 16
+                }
+            ]
+        },
+        {
+            "name": "mergeKv",
+            "module": "mergeKv.spv",
+            "localSize": [
+                64,
+                1,
+                1
+            ],
+            "bindings": [
+                {
+                    "binding": 0,
+                    "name": "prefix",
+                    "access": "read"
+                },
+                {
+                    "binding": 1,
+                    "name": "tail",
+                    "access": "read"
+                },
+                {
+                    "binding": 2,
+                    "name": "output",
+                    "access": "write"
+                }
+            ],
+            "pushBytes": 16,
+            "push": [
+                {
+                    "name": "rows",
+                    "type": "uint32",
+                    "offset": 0
+                },
+                {
+                    "name": "count",
+                    "type": "uint32",
+                    "offset": 4
+                },
+                {
+                    "name": "base",
+                    "type": "uint32",
+                    "offset": 8
+                },
+                {
+                    "name": "dim",
+                    "type": "uint32",
+                    "offset": 12
+                }
+            ]
+        },
+        {
+            "name": "elementwise",
+            "module": "elementwise.spv",
+            "localSize": [
+                64,
+                1,
+                1
+            ],
+            "bindings": [
+                {
+                    "binding": 0,
+                    "name": "first",
+                    "access": "read"
+                },
+                {
+                    "binding": 1,
+                    "name": "second",
+                    "access": "read"
+                },
+                {
+                    "binding": 2,
+                    "name": "output",
+                    "access": "write"
+                }
+            ],
+            "pushBytes": 12,
+            "push": [
+                {
+                    "name": "count",
+                    "type": "uint32",
+                    "offset": 0
+                },
+                {
+                    "name": "width",
+                    "type": "uint32",
+                    "offset": 4
+                },
+                {
+                    "name": "mode",
+                    "type": "uint32",
+                    "offset": 8
+                }
+            ]
+        },
+        {
+            "name": "attentionScores",
+            "module": "attentionScores.spv",
+            "localSize": [
+                64,
+                1,
+                1
+            ],
+            "bindings": [
+                {
+                    "binding": 0,
+                    "name": "q",
+                    "access": "read"
+                },
+                {
+                    "binding": 1,
+                    "name": "keys",
+                    "access": "read"
+                },
+                {
+                    "binding": 2,
+                    "name": "metadata",
+                    "access": "read"
+                },
+                {
+                    "binding": 3,
+                    "name": "scores",
+                    "access": "write"
+                }
+            ],
+            "pushBytes": 36,
+            "push": [
+                {
+                    "name": "rows",
+                    "type": "uint32",
+                    "offset": 0
+                },
+                {
+                    "name": "count",
+                    "type": "uint32",
+                    "offset": 4
+                },
+                {
+                    "name": "base",
+                    "type": "uint32",
+                    "offset": 8
+                },
+                {
+                    "name": "encoded",
+                    "type": "uint32",
+                    "offset": 12
+                },
+                {
+                    "name": "contextPatches",
+                    "type": "uint32",
+                    "offset": 16
+                },
+                {
+                    "name": "heads",
+                    "type": "uint32",
+                    "offset": 20
+                },
+                {
+                    "name": "headDim",
+                    "type": "uint32",
+                    "offset": 24
+                },
+                {
+                    "name": "covariates",
+                    "type": "uint32",
+                    "offset": 28
+                },
+                {
+                    "name": "isTime",
+                    "type": "uint32",
+                    "offset": 32
+                }
+            ]
+        },
+        {
+            "name": "attentionValues",
+            "module": "attentionValues.spv",
+            "localSize": [
+                64,
+                1,
+                1
+            ],
+            "bindings": [
+                {
+                    "binding": 0,
+                    "name": "probabilities",
+                    "access": "read"
+                },
+                {
+                    "binding": 1,
+                    "name": "values",
+                    "access": "read"
+                },
+                {
+                    "binding": 2,
+                    "name": "output",
+                    "access": "write"
+                }
+            ],
+            "pushBytes": 36,
+            "push": [
+                {
+                    "name": "rows",
+                    "type": "uint32",
+                    "offset": 0
+                },
+                {
+                    "name": "count",
+                    "type": "uint32",
+                    "offset": 4
+                },
+                {
+                    "name": "base",
+                    "type": "uint32",
+                    "offset": 8
+                },
+                {
+                    "name": "encoded",
+                    "type": "uint32",
+                    "offset": 12
+                },
+                {
+                    "name": "contextPatches",
+                    "type": "uint32",
+                    "offset": 16
+                },
+                {
+                    "name": "heads",
+                    "type": "uint32",
+                    "offset": 20
+                },
+                {
+                    "name": "headDim",
+                    "type": "uint32",
+                    "offset": 24
+                },
+                {
+                    "name": "covariates",
+                    "type": "uint32",
+                    "offset": 28
+                },
+                {
+                    "name": "isTime",
+                    "type": "uint32",
+                    "offset": 32
+                }
+            ]
+        },
+        {
+            "name": "attentionFused",
+            "module": "attentionFused.spv",
+            "localSize": [
+                64,
+                1,
+                1
+            ],
+            "bindings": [
+                {
+                    "binding": 0,
+                    "name": "q",
+                    "access": "read"
+                },
+                {
+                    "binding": 1,
+                    "name": "keys",
+                    "access": "read"
+                },
+                {
+                    "binding": 2,
+                    "name": "values",
+                    "access": "read"
+                },
+                {
+                    "binding": 3,
+                    "name": "metadata",
+                    "access": "read"
+                },
+                {
+                    "binding": 4,
+                    "name": "output",
+                    "access": "write"
+                }
+            ],
+            "pushBytes": 36,
+            "push": [
+                {
+                    "name": "rows",
+                    "type": "uint32",
+                    "offset": 0
+                },
+                {
+                    "name": "count",
+                    "type": "uint32",
+                    "offset": 4
+                },
+                {
+                    "name": "base",
+                    "type": "uint32",
+                    "offset": 8
+                },
+                {
+                    "name": "encoded",
+                    "type": "uint32",
+                    "offset": 12
+                },
+                {
+                    "name": "contextPatches",
+                    "type": "uint32",
+                    "offset": 16
+                },
+                {
+                    "name": "heads",
+                    "type": "uint32",
+                    "offset": 20
+                },
+                {
+                    "name": "headDim",
+                    "type": "uint32",
+                    "offset": 24
+                },
+                {
+                    "name": "covariates",
+                    "type": "uint32",
+                    "offset": 28
+                },
+                {
+                    "name": "isTime",
+                    "type": "uint32",
+                    "offset": 32
+                }
+            ]
+        },
+        {
+            "name": "attentionRegister",
+            "module": "attentionRegister.spv",
+            "localSize": [
+                64,
+                1,
+                1
+            ],
+            "bindings": [
+                {
+                    "binding": 0,
+                    "name": "q",
+                    "access": "read"
+                },
+                {
+                    "binding": 1,
+                    "name": "keys",
+                    "access": "read"
+                },
+                {
+                    "binding": 2,
+                    "name": "values",
+                    "access": "read"
+                },
+                {
+                    "binding": 3,
+                    "name": "metadata",
+                    "access": "read"
+                },
+                {
+                    "binding": 4,
+                    "name": "output",
+                    "access": "write"
+                }
+            ],
+            "pushBytes": 36,
+            "push": [
+                {
+                    "name": "rows",
+                    "type": "uint32",
+                    "offset": 0
+                },
+                {
+                    "name": "count",
+                    "type": "uint32",
+                    "offset": 4
+                },
+                {
+                    "name": "base",
+                    "type": "uint32",
+                    "offset": 8
+                },
+                {
+                    "name": "encoded",
+                    "type": "uint32",
+                    "offset": 12
+                },
+                {
+                    "name": "contextPatches",
+                    "type": "uint32",
+                    "offset": 16
+                },
+                {
+                    "name": "heads",
+                    "type": "uint32",
+                    "offset": 20
+                },
+                {
+                    "name": "headDim",
+                    "type": "uint32",
+                    "offset": 24
+                },
+                {
+                    "name": "covariates",
+                    "type": "uint32",
+                    "offset": 28
+                },
+                {
+                    "name": "isTime",
+                    "type": "uint32",
+                    "offset": 32
+                }
+            ]
+        },
+        {
+            "name": "attentionTile",
+            "module": "attentionTile.spv",
+            "localSize": [
+                64,
+                8,
+                1
+            ],
+            "bindings": [
+                {
+                    "binding": 0,
+                    "name": "q",
+                    "access": "read"
+                },
+                {
+                    "binding": 1,
+                    "name": "keys",
+                    "access": "read"
+                },
+                {
+                    "binding": 2,
+                    "name": "values",
+                    "access": "read"
+                },
+                {
+                    "binding": 3,
+                    "name": "metadata",
+                    "access": "read"
+                },
+                {
+                    "binding": 4,
+                    "name": "output",
+                    "access": "write"
+                }
+            ],
+            "pushBytes": 36,
+            "push": [
+                {
+                    "name": "rows",
+                    "type": "uint32",
+                    "offset": 0
+                },
+                {
+                    "name": "count",
+                    "type": "uint32",
+                    "offset": 4
+                },
+                {
+                    "name": "base",
+                    "type": "uint32",
+                    "offset": 8
+                },
+                {
+                    "name": "encoded",
+                    "type": "uint32",
+                    "offset": 12
+                },
+                {
+                    "name": "contextPatches",
+                    "type": "uint32",
+                    "offset": 16
+                },
+                {
+                    "name": "heads",
+                    "type": "uint32",
+                    "offset": 20
+                },
+                {
+                    "name": "headDim",
+                    "type": "uint32",
+                    "offset": 24
+                },
+                {
+                    "name": "covariates",
+                    "type": "uint32",
+                    "offset": 28
+                },
+                {
+                    "name": "isTime",
+                    "type": "uint32",
+                    "offset": 32
+                }
+            ],
+            "requiredDeviceLimits": {
+                "maxComputeWorkGroupInvocations": 512,
+                "maxComputeSharedMemorySize": 39168
+            }
+        },
+        {
+            "name": "gemv",
+            "module": "gemv.spv",
+            "localSize": [
+                64,
+                1,
+                1
+            ],
+            "bindings": [
+                {
+                    "binding": 0,
+                    "name": "input",
+                    "access": "read"
+                },
+                {
+                    "binding": 1,
+                    "name": "weight",
+                    "access": "read"
+                },
+                {
+                    "binding": 2,
+                    "name": "bias",
+                    "access": "read"
+                },
+                {
+                    "binding": 3,
+                    "name": "output",
+                    "access": "write"
+                }
+            ],
+            "pushBytes": 16,
+            "push": [
+                {
+                    "name": "rows",
+                    "type": "uint32",
+                    "offset": 0
+                },
+                {
+                    "name": "columns",
+                    "type": "uint32",
+                    "offset": 4
+                },
+                {
+                    "name": "inner",
+                    "type": "uint32",
+                    "offset": 8
+                },
+                {
+                    "name": "useBias",
+                    "type": "uint32",
+                    "offset": 12
+                }
+            ]
+        },
+        {
+            "name": "attentionCausal",
+            "module": "attentionCausal.spv",
+            "localSize": [
+                64,
+                8,
+                1
+            ],
+            "bindings": [
+                {
+                    "binding": 0,
+                    "name": "q",
+                    "access": "read"
+                },
+                {
+                    "binding": 1,
+                    "name": "keys",
+                    "access": "read"
+                },
+                {
+                    "binding": 2,
+                    "name": "values",
+                    "access": "read"
+                },
+                {
+                    "binding": 3,
+                    "name": "metadata",
+                    "access": "read"
+                },
+                {
+                    "binding": 4,
+                    "name": "output",
+                    "access": "write"
+                }
+            ],
+            "pushBytes": 36,
+            "push": [
+                {
+                    "name": "rows",
+                    "type": "uint32",
+                    "offset": 0
+                },
+                {
+                    "name": "count",
+                    "type": "uint32",
+                    "offset": 4
+                },
+                {
+                    "name": "base",
+                    "type": "uint32",
+                    "offset": 8
+                },
+                {
+                    "name": "encoded",
+                    "type": "uint32",
+                    "offset": 12
+                },
+                {
+                    "name": "contextPatches",
+                    "type": "uint32",
+                    "offset": 16
+                },
+                {
+                    "name": "heads",
+                    "type": "uint32",
+                    "offset": 20
+                },
+                {
+                    "name": "headDim",
+                    "type": "uint32",
+                    "offset": 24
+                },
+                {
+                    "name": "covariates",
+                    "type": "uint32",
+                    "offset": 28
+                },
+                {
+                    "name": "isTime",
+                    "type": "uint32",
+                    "offset": 32
+                }
+            ],
+            "requiredDeviceLimits": {
+                "maxComputeWorkGroupInvocations": 512,
+                "maxComputeSharedMemorySize": 39168
+            }
+        },
+        {
+            "name": "attentionDecode",
+            "module": "attentionDecode.spv",
+            "localSize": [
+                64,
+                1,
+                1
+            ],
+            "bindings": [
+                {
+                    "binding": 0,
+                    "name": "q",
+                    "access": "read"
+                },
+                {
+                    "binding": 1,
+                    "name": "keys",
+                    "access": "read"
+                },
+                {
+                    "binding": 2,
+                    "name": "values",
+                    "access": "read"
+                },
+                {
+                    "binding": 3,
+                    "name": "metadata",
+                    "access": "read"
+                },
+                {
+                    "binding": 4,
+                    "name": "output",
+                    "access": "write"
+                }
+            ],
+            "pushBytes": 40,
+            "push": [
+                {
+                    "name": "rows",
+                    "type": "uint32",
+                    "offset": 0
+                },
+                {
+                    "name": "count",
+                    "type": "uint32",
+                    "offset": 4
+                },
+                {
+                    "name": "base",
+                    "type": "uint32",
+                    "offset": 8
+                },
+                {
+                    "name": "encoded",
+                    "type": "uint32",
+                    "offset": 12
+                },
+                {
+                    "name": "contextPatches",
+                    "type": "uint32",
+                    "offset": 16
+                },
+                {
+                    "name": "heads",
+                    "type": "uint32",
+                    "offset": 20
+                },
+                {
+                    "name": "headDim",
+                    "type": "uint32",
+                    "offset": 24
+                },
+                {
+                    "name": "covariates",
+                    "type": "uint32",
+                    "offset": 28
+                },
+                {
+                    "name": "isTime",
+                    "type": "uint32",
+                    "offset": 32
+                },
+                {
+                    "name": "chunkKeys",
+                    "type": "uint32",
+                    "offset": 36
+                }
+            ],
+            "requiredDeviceLimits": {
+                "maxPushConstantsSize": 40,
+                "maxComputeSharedMemorySize": 17408
+            }
+        },
+        {
+            "name": "attentionDecodeMerge",
+            "module": "attentionDecodeMerge.spv",
+            "localSize": [
+                64,
+                1,
+                1
+            ],
+            "bindings": [
+                {
+                    "binding": 0,
+                    "name": "partial",
+                    "access": "read"
+                },
+                {
+                    "binding": 1,
+                    "name": "output",
+                    "access": "write"
+                }
+            ],
+            "pushBytes": 12,
+            "push": [
+                {
+                    "name": "rows",
+                    "type": "uint32",
+                    "offset": 0
+                },
+                {
+                    "name": "heads",
+                    "type": "uint32",
+                    "offset": 4
+                },
+                {
+                    "name": "splits",
+                    "type": "uint32",
+                    "offset": 8
+                }
+            ]
+        },
+        {
+            "name": "attentionSubgroup",
+            "module": "attentionSubgroup.spv",
+            "localSize": [
+                64,
+                8,
+                1
+            ],
+            "bindings": [
+                {
+                    "binding": 0,
+                    "name": "q",
+                    "access": "read"
+                },
+                {
+                    "binding": 1,
+                    "name": "keys",
+                    "access": "read"
+                },
+                {
+                    "binding": 2,
+                    "name": "values",
+                    "access": "read"
+                },
+                {
+                    "binding": 3,
+                    "name": "metadata",
+                    "access": "read"
+                },
+                {
+                    "binding": 4,
+                    "name": "output",
+                    "access": "write"
+                }
+            ],
+            "pushBytes": 36,
+            "push": [
+                {
+                    "name": "rows",
+                    "type": "uint32",
+                    "offset": 0
+                },
+                {
+                    "name": "count",
+                    "type": "uint32",
+                    "offset": 4
+                },
+                {
+                    "name": "base",
+                    "type": "uint32",
+                    "offset": 8
+                },
+                {
+                    "name": "encoded",
+                    "type": "uint32",
+                    "offset": 12
+                },
+                {
+                    "name": "contextPatches",
+                    "type": "uint32",
+                    "offset": 16
+                },
+                {
+                    "name": "heads",
+                    "type": "uint32",
+                    "offset": 20
+                },
+                {
+                    "name": "headDim",
+                    "type": "uint32",
+                    "offset": 24
+                },
+                {
+                    "name": "covariates",
+                    "type": "uint32",
+                    "offset": 28
+                },
+                {
+                    "name": "isTime",
+                    "type": "uint32",
+                    "offset": 32
+                }
+            ],
+            "requiredDeviceLimits": {
+                "maxComputeWorkGroupInvocations": 512,
+                "maxComputeSharedMemorySize": 39300
+            },
+            "requiredSubgroupOperations": [
+                "Basic",
+                "Vote",
+                "Arithmetic"
+            ]
+        },
+        {
+            "name": "gemmWide",
+            "module": "gemmWide.spv",
+            "localSize": [
+                16,
+                16,
+                1
+            ],
+            "bindings": [
+                {
+                    "binding": 0,
+                    "name": "input",
+                    "access": "read"
+                },
+                {
+                    "binding": 1,
+                    "name": "weight",
+                    "access": "read"
+                },
+                {
+                    "binding": 2,
+                    "name": "bias",
+                    "access": "read"
+                },
+                {
+                    "binding": 3,
+                    "name": "output",
+                    "access": "write"
+                }
+            ],
+            "pushBytes": 16,
+            "push": [
+                {
+                    "name": "rows",
+                    "type": "uint32",
+                    "offset": 0
+                },
+                {
+                    "name": "columns",
+                    "type": "uint32",
+                    "offset": 4
+                },
+                {
+                    "name": "inner",
+                    "type": "uint32",
+                    "offset": 8
+                },
+                {
+                    "name": "useBias",
+                    "type": "uint32",
+                    "offset": 12
+                }
+            ],
+            "requiredDeviceLimits": {
+                "maxComputeSharedMemorySize": 8256
+            }
+        },
+        {
+            "name": "attentionPacked",
+            "module": "attentionPacked.spv",
+            "localSize": [
+                16,
+                8,
+                1
+            ],
+            "bindings": [
+                {
+                    "binding": 0,
+                    "name": "q",
+                    "access": "read"
+                },
+                {
+                    "binding": 1,
+                    "name": "keys",
+                    "access": "read"
+                },
+                {
+                    "binding": 2,
+                    "name": "values",
+                    "access": "read"
+                },
+                {
+                    "binding": 3,
+                    "name": "metadata",
+                    "access": "read"
+                },
+                {
+                    "binding": 4,
+                    "name": "output",
+                    "access": "write"
+                }
+            ],
+            "pushBytes": 36,
+            "push": [
+                {
+                    "name": "rows",
+                    "type": "uint32",
+                    "offset": 0
+                },
+                {
+                    "name": "count",
+                    "type": "uint32",
+                    "offset": 4
+                },
+                {
+                    "name": "base",
+                    "type": "uint32",
+                    "offset": 8
+                },
+                {
+                    "name": "encoded",
+                    "type": "uint32",
+                    "offset": 12
+                },
+                {
+                    "name": "contextPatches",
+                    "type": "uint32",
+                    "offset": 16
+                },
+                {
+                    "name": "heads",
+                    "type": "uint32",
+                    "offset": 20
+                },
+                {
+                    "name": "headDim",
+                    "type": "uint32",
+                    "offset": 24
+                },
+                {
+                    "name": "covariates",
+                    "type": "uint32",
+                    "offset": 28
+                },
+                {
+                    "name": "isTime",
+                    "type": "uint32",
+                    "offset": 32
+                }
+            ],
+            "requiredDeviceLimits": {
+                "maxComputeWorkGroupInvocations": 128,
+                "maxComputeSharedMemorySize": 37632
+            }
+        },
+        {
+            "name": "siluGrid",
+            "module": "siluGrid.spv",
+            "localSize": [
+                64,
+                1,
+                1
+            ],
+            "bindings": [
+                {
+                    "binding": 0,
+                    "name": "input",
+                    "access": "read"
+                },
+                {
+                    "binding": 1,
+                    "name": "output",
+                    "access": "write"
+                }
+            ],
+            "pushBytes": 4,
+            "push": [
+                {
+                    "name": "count",
+                    "type": "uint32",
+                    "offset": 0
+                }
+            ]
+        },
+        {
+            "name": "attentionPrefix",
+            "module": "attentionPrefix.spv",
+            "localSize": [
+                64,
+                1,
+                1
+            ],
+            "bindings": [
+                {
+                    "binding": 0,
+                    "name": "q",
+                    "access": "read"
+                },
+                {
+                    "binding": 1,
+                    "name": "keys",
+                    "access": "read"
+                },
+                {
+                    "binding": 2,
+                    "name": "values",
+                    "access": "read"
+                },
+                {
+                    "binding": 3,
+                    "name": "metadata",
+                    "access": "read"
+                },
+                {
+                    "binding": 4,
+                    "name": "output",
+                    "access": "write"
+                }
+            ],
+            "pushBytes": 40,
+            "push": [
+                {
+                    "name": "rows",
+                    "type": "uint32",
+                    "offset": 0
+                },
+                {
+                    "name": "count",
+                    "type": "uint32",
+                    "offset": 4
+                },
+                {
+                    "name": "base",
+                    "type": "uint32",
+                    "offset": 8
+                },
+                {
+                    "name": "encoded",
+                    "type": "uint32",
+                    "offset": 12
+                },
+                {
+                    "name": "contextPatches",
+                    "type": "uint32",
+                    "offset": 16
+                },
+                {
+                    "name": "heads",
+                    "type": "uint32",
+                    "offset": 20
+                },
+                {
+                    "name": "headDim",
+                    "type": "uint32",
+                    "offset": 24
+                },
+                {
+                    "name": "covariates",
+                    "type": "uint32",
+                    "offset": 28
+                },
+                {
+                    "name": "isTime",
+                    "type": "uint32",
+                    "offset": 32
+                },
+                {
+                    "name": "prefixRows",
+                    "type": "uint32",
+                    "offset": 36
+                }
+            ]
+        },
+        {
+            "name": "attentionGroup",
+            "module": "attentionGroup.spv",
+            "localSize": [
+                64,
+                1,
+                1
+            ],
+            "bindings": [
+                {
+                    "binding": 0,
+                    "name": "q",
+                    "access": "read"
+                },
+                {
+                    "binding": 1,
+                    "name": "keys",
+                    "access": "read"
+                },
+                {
+                    "binding": 2,
+                    "name": "values",
+                    "access": "read"
+                },
+                {
+                    "binding": 3,
+                    "name": "metadata",
+                    "access": "read"
+                },
+                {
+                    "binding": 4,
+                    "name": "output",
+                    "access": "write"
+                }
+            ],
+            "pushBytes": 36,
+            "push": [
+                {
+                    "name": "rows",
+                    "type": "uint32",
+                    "offset": 0
+                },
+                {
+                    "name": "count",
+                    "type": "uint32",
+                    "offset": 4
+                },
+                {
+                    "name": "base",
+                    "type": "uint32",
+                    "offset": 8
+                },
+                {
+                    "name": "encoded",
+                    "type": "uint32",
+                    "offset": 12
+                },
+                {
+                    "name": "contextPatches",
+                    "type": "uint32",
+                    "offset": 16
+                },
+                {
+                    "name": "heads",
+                    "type": "uint32",
+                    "offset": 20
+                },
+                {
+                    "name": "headDim",
+                    "type": "uint32",
+                    "offset": 24
+                },
+                {
+                    "name": "covariates",
+                    "type": "uint32",
+                    "offset": 28
+                },
+                {
+                    "name": "isTime",
+                    "type": "uint32",
+                    "offset": 32
+                }
+            ]
+        },
+        {
+            "name": "attentionOrdered",
+            "module": "attentionOrdered.spv",
+            "localSize": [
+                64,
+                1,
+                1
+            ],
+            "bindings": [
+                {
+                    "binding": 0,
+                    "name": "q",
+                    "access": "read"
+                },
+                {
+                    "binding": 1,
+                    "name": "keys",
+                    "access": "read"
+                },
+                {
+                    "binding": 2,
+                    "name": "values",
+                    "access": "read"
+                },
+                {
+                    "binding": 3,
+                    "name": "metadata",
+                    "access": "read"
+                },
+                {
+                    "binding": 4,
+                    "name": "output",
+                    "access": "write"
+                }
+            ],
+            "pushBytes": 40,
+            "push": [
+                {
+                    "name": "rows",
+                    "type": "uint32",
+                    "offset": 0
+                },
+                {
+                    "name": "count",
+                    "type": "uint32",
+                    "offset": 4
+                },
+                {
+                    "name": "base",
+                    "type": "uint32",
+                    "offset": 8
+                },
+                {
+                    "name": "encoded",
+                    "type": "uint32",
+                    "offset": 12
+                },
+                {
+                    "name": "contextPatches",
+                    "type": "uint32",
+                    "offset": 16
+                },
+                {
+                    "name": "heads",
+                    "type": "uint32",
+                    "offset": 20
+                },
+                {
+                    "name": "headDim",
+                    "type": "uint32",
+                    "offset": 24
+                },
+                {
+                    "name": "covariates",
+                    "type": "uint32",
+                    "offset": 28
+                },
+                {
+                    "name": "isTime",
+                    "type": "uint32",
+                    "offset": 32
+                },
+                {
+                    "name": "prefixRows",
+                    "type": "uint32",
+                    "offset": 36
+                }
+            ]
+        },
+        {
+            "name": "rmsNormOrdered",
+            "module": "rmsNormOrdered.spv",
+            "localSize": [
+                64,
+                1,
+                1
+            ],
+            "bindings": [
+                {
+                    "binding": 0,
+                    "name": "input",
+                    "access": "read"
+                },
+                {
+                    "binding": 1,
+                    "name": "scale",
+                    "access": "read"
+                },
+                {
+                    "binding": 2,
+                    "name": "output",
+                    "access": "write"
+                }
+            ],
+            "pushBytes": 12,
+            "push": [
+                {
+                    "name": "rows",
+                    "type": "uint32",
+                    "offset": 0
+                },
+                {
+                    "name": "width",
+                    "type": "uint32",
+                    "offset": 4
+                },
+                {
+                    "name": "epsilon",
+                    "type": "float32",
+                    "offset": 8
+                }
+            ]
+        },
+        {
+            "name": "elementwiseOrdered",
+            "module": "elementwiseOrdered.spv",
+            "localSize": [
+                64,
+                1,
+                1
+            ],
+            "bindings": [
+                {
+                    "binding": 0,
+                    "name": "first",
+                    "access": "read"
+                },
+                {
+                    "binding": 1,
+                    "name": "second",
+                    "access": "read"
+                },
+                {
+                    "binding": 2,
+                    "name": "output",
+                    "access": "write"
+                }
+            ],
+            "pushBytes": 12,
+            "push": [
+                {
+                    "name": "count",
+                    "type": "uint32",
+                    "offset": 0
+                },
+                {
+                    "name": "width",
+                    "type": "uint32",
+                    "offset": 4
+                },
+                {
+                    "name": "mode",
+                    "type": "uint32",
+                    "offset": 8
+                }
+            ]
+        },
+        {
+            "name": "gemmBudget",
+            "module": "gemmBudget.spv",
+            "localSize": [
+                16,
+                16,
+                1
+            ],
+            "bindings": [
+                {
+                    "binding": 0,
+                    "name": "input",
+                    "access": "read"
+                },
+                {
+                    "binding": 1,
+                    "name": "weight",
+                    "access": "read"
+                },
+                {
+                    "binding": 2,
+                    "name": "bias",
+                    "access": "read"
+                },
+                {
+                    "binding": 3,
+                    "name": "output",
+                    "access": "write"
+                }
+            ],
+            "pushBytes": 16,
+            "push": [
+                {
+                    "name": "rows",
+                    "type": "uint32",
+                    "offset": 0
+                },
+                {
+                    "name": "columns",
+                    "type": "uint32",
+                    "offset": 4
+                },
+                {
+                    "name": "inner",
+                    "type": "uint32",
+                    "offset": 8
+                },
+                {
+                    "name": "useBias",
+                    "type": "uint32",
+                    "offset": 12
+                }
+            ],
+            "budgetFor": "gemm",
+            "specializationGridWidthId": 255
+        },
+        {
+            "name": "gemmTileBudget",
+            "module": "gemmTileBudget.spv",
+            "localSize": [
+                16,
+                16,
+                1
+            ],
+            "bindings": [
+                {
+                    "binding": 0,
+                    "name": "input",
+                    "access": "read"
+                },
+                {
+                    "binding": 1,
+                    "name": "weight",
+                    "access": "read"
+                },
+                {
+                    "binding": 2,
+                    "name": "bias",
+                    "access": "read"
+                },
+                {
+                    "binding": 3,
+                    "name": "output",
+                    "access": "write"
+                }
+            ],
+            "pushBytes": 16,
+            "push": [
+                {
+                    "name": "rows",
+                    "type": "uint32",
+                    "offset": 0
+                },
+                {
+                    "name": "columns",
+                    "type": "uint32",
+                    "offset": 4
+                },
+                {
+                    "name": "inner",
+                    "type": "uint32",
+                    "offset": 8
+                },
+                {
+                    "name": "useBias",
+                    "type": "uint32",
+                    "offset": 12
+                }
+            ],
+            "budgetFor": "gemmTile",
+            "specializationGridWidthId": 255
+        },
+        {
+            "name": "rmsNormBudget",
+            "module": "rmsNormBudget.spv",
+            "localSize": [
+                64,
+                1,
+                1
+            ],
+            "bindings": [
+                {
+                    "binding": 0,
+                    "name": "input",
+                    "access": "read"
+                },
+                {
+                    "binding": 1,
+                    "name": "scale",
+                    "access": "read"
+                },
+                {
+                    "binding": 2,
+                    "name": "output",
+                    "access": "write"
+                }
+            ],
+            "pushBytes": 12,
+            "push": [
+                {
+                    "name": "rows",
+                    "type": "uint32",
+                    "offset": 0
+                },
+                {
+                    "name": "width",
+                    "type": "uint32",
+                    "offset": 4
+                },
+                {
+                    "name": "epsilon",
+                    "type": "float32",
+                    "offset": 8
+                }
+            ],
+            "budgetFor": "rmsNorm",
+            "specializationGridWidthId": 255
+        },
+        {
+            "name": "softmaxBudget",
+            "module": "softmaxBudget.spv",
+            "localSize": [
+                64,
+                1,
+                1
+            ],
+            "bindings": [
+                {
+                    "binding": 0,
+                    "name": "input",
+                    "access": "read"
+                },
+                {
+                    "binding": 1,
+                    "name": "output",
+                    "access": "write"
+                }
+            ],
+            "pushBytes": 8,
+            "push": [
+                {
+                    "name": "rows",
+                    "type": "uint32",
+                    "offset": 0
+                },
+                {
+                    "name": "width",
+                    "type": "uint32",
+                    "offset": 4
+                }
+            ],
+            "budgetFor": "softmax",
+            "specializationGridWidthId": 255
+        },
+        {
+            "name": "siluBudget",
+            "module": "siluBudget.spv",
+            "localSize": [
+                64,
+                1,
+                1
+            ],
+            "bindings": [
+                {
+                    "binding": 0,
+                    "name": "input",
+                    "access": "read"
+                },
+                {
+                    "binding": 1,
+                    "name": "output",
+                    "access": "write"
+                }
+            ],
+            "pushBytes": 4,
+            "push": [
+                {
+                    "name": "count",
+                    "type": "uint32",
+                    "offset": 0
+                }
+            ],
+            "budgetFor": "silu",
+            "specializationGridWidthId": 255
+        },
+        {
+            "name": "prepareQkvBudget",
+            "module": "prepareQkvBudget.spv",
+            "localSize": [
+                64,
+                1,
+                1
+            ],
+            "bindings": [
+                {
+                    "binding": 0,
+                    "name": "fused",
+                    "access": "read"
+                },
+                {
+                    "binding": 1,
+                    "name": "rotary",
+                    "access": "read"
+                },
+                {
+                    "binding": 2,
+                    "name": "q",
+                    "access": "write"
+                },
+                {
+                    "binding": 3,
+                    "name": "k",
+                    "access": "write"
+                },
+                {
+                    "binding": 4,
+                    "name": "v",
+                    "access": "write"
+                }
+            ],
+            "pushBytes": 20,
+            "push": [
+                {
+                    "name": "tokens",
+                    "type": "uint32",
+                    "offset": 0
+                },
+                {
+                    "name": "heads",
+                    "type": "uint32",
+                    "offset": 4
+                },
+                {
+                    "name": "headDim",
+                    "type": "uint32",
+                    "offset": 8
+                },
+                {
+                    "name": "ropeDim",
+                    "type": "uint32",
+                    "offset": 12
+                },
+                {
+                    "name": "isTime",
+                    "type": "uint32",
+                    "offset": 16
+                }
+            ],
+            "budgetFor": "prepareQkv",
+            "specializationGridWidthId": 255
+        },
+        {
+            "name": "mergeKvBudget",
+            "module": "mergeKvBudget.spv",
+            "localSize": [
+                64,
+                1,
+                1
+            ],
+            "bindings": [
+                {
+                    "binding": 0,
+                    "name": "prefix",
+                    "access": "read"
+                },
+                {
+                    "binding": 1,
+                    "name": "tail",
+                    "access": "read"
+                },
+                {
+                    "binding": 2,
+                    "name": "output",
+                    "access": "write"
+                }
+            ],
+            "pushBytes": 16,
+            "push": [
+                {
+                    "name": "rows",
+                    "type": "uint32",
+                    "offset": 0
+                },
+                {
+                    "name": "count",
+                    "type": "uint32",
+                    "offset": 4
+                },
+                {
+                    "name": "base",
+                    "type": "uint32",
+                    "offset": 8
+                },
+                {
+                    "name": "dim",
+                    "type": "uint32",
+                    "offset": 12
+                }
+            ],
+            "budgetFor": "mergeKv",
+            "specializationGridWidthId": 255
+        },
+        {
+            "name": "elementwiseBudget",
+            "module": "elementwiseBudget.spv",
+            "localSize": [
+                64,
+                1,
+                1
+            ],
+            "bindings": [
+                {
+                    "binding": 0,
+                    "name": "first",
+                    "access": "read"
+                },
+                {
+                    "binding": 1,
+                    "name": "second",
+                    "access": "read"
+                },
+                {
+                    "binding": 2,
+                    "name": "output",
+                    "access": "write"
+                }
+            ],
+            "pushBytes": 12,
+            "push": [
+                {
+                    "name": "count",
+                    "type": "uint32",
+                    "offset": 0
+                },
+                {
+                    "name": "width",
+                    "type": "uint32",
+                    "offset": 4
+                },
+                {
+                    "name": "mode",
+                    "type": "uint32",
+                    "offset": 8
+                }
+            ],
+            "budgetFor": "elementwise",
+            "specializationGridWidthId": 255
+        },
+        {
+            "name": "attentionScoresBudget",
+            "module": "attentionScoresBudget.spv",
+            "localSize": [
+                64,
+                1,
+                1
+            ],
+            "bindings": [
+                {
+                    "binding": 0,
+                    "name": "q",
+                    "access": "read"
+                },
+                {
+                    "binding": 1,
+                    "name": "keys",
+                    "access": "read"
+                },
+                {
+                    "binding": 2,
+                    "name": "metadata",
+                    "access": "read"
+                },
+                {
+                    "binding": 3,
+                    "name": "scores",
+                    "access": "write"
+                }
+            ],
+            "pushBytes": 36,
+            "push": [
+                {
+                    "name": "rows",
+                    "type": "uint32",
+                    "offset": 0
+                },
+                {
+                    "name": "count",
+                    "type": "uint32",
+                    "offset": 4
+                },
+                {
+                    "name": "base",
+                    "type": "uint32",
+                    "offset": 8
+                },
+                {
+                    "name": "encoded",
+                    "type": "uint32",
+                    "offset": 12
+                },
+                {
+                    "name": "contextPatches",
+                    "type": "uint32",
+                    "offset": 16
+                },
+                {
+                    "name": "heads",
+                    "type": "uint32",
+                    "offset": 20
+                },
+                {
+                    "name": "headDim",
+                    "type": "uint32",
+                    "offset": 24
+                },
+                {
+                    "name": "covariates",
+                    "type": "uint32",
+                    "offset": 28
+                },
+                {
+                    "name": "isTime",
+                    "type": "uint32",
+                    "offset": 32
+                }
+            ],
+            "budgetFor": "attentionScores",
+            "specializationGridWidthId": 255
+        },
+        {
+            "name": "attentionValuesBudget",
+            "module": "attentionValuesBudget.spv",
+            "localSize": [
+                64,
+                1,
+                1
+            ],
+            "bindings": [
+                {
+                    "binding": 0,
+                    "name": "probabilities",
+                    "access": "read"
+                },
+                {
+                    "binding": 1,
+                    "name": "values",
+                    "access": "read"
+                },
+                {
+                    "binding": 2,
+                    "name": "output",
+                    "access": "write"
+                }
+            ],
+            "pushBytes": 36,
+            "push": [
+                {
+                    "name": "rows",
+                    "type": "uint32",
+                    "offset": 0
+                },
+                {
+                    "name": "count",
+                    "type": "uint32",
+                    "offset": 4
+                },
+                {
+                    "name": "base",
+                    "type": "uint32",
+                    "offset": 8
+                },
+                {
+                    "name": "encoded",
+                    "type": "uint32",
+                    "offset": 12
+                },
+                {
+                    "name": "contextPatches",
+                    "type": "uint32",
+                    "offset": 16
+                },
+                {
+                    "name": "heads",
+                    "type": "uint32",
+                    "offset": 20
+                },
+                {
+                    "name": "headDim",
+                    "type": "uint32",
+                    "offset": 24
+                },
+                {
+                    "name": "covariates",
+                    "type": "uint32",
+                    "offset": 28
+                },
+                {
+                    "name": "isTime",
+                    "type": "uint32",
+                    "offset": 32
+                }
+            ],
+            "budgetFor": "attentionValues",
+            "specializationGridWidthId": 255
+        },
+        {
+            "name": "attentionFusedBudget",
+            "module": "attentionFusedBudget.spv",
+            "localSize": [
+                64,
+                1,
+                1
+            ],
+            "bindings": [
+                {
+                    "binding": 0,
+                    "name": "q",
+                    "access": "read"
+                },
+                {
+                    "binding": 1,
+                    "name": "keys",
+                    "access": "read"
+                },
+                {
+                    "binding": 2,
+                    "name": "values",
+                    "access": "read"
+                },
+                {
+                    "binding": 3,
+                    "name": "metadata",
+                    "access": "read"
+                },
+                {
+                    "binding": 4,
+                    "name": "output",
+                    "access": "write"
+                }
+            ],
+            "pushBytes": 36,
+            "push": [
+                {
+                    "name": "rows",
+                    "type": "uint32",
+                    "offset": 0
+                },
+                {
+                    "name": "count",
+                    "type": "uint32",
+                    "offset": 4
+                },
+                {
+                    "name": "base",
+                    "type": "uint32",
+                    "offset": 8
+                },
+                {
+                    "name": "encoded",
+                    "type": "uint32",
+                    "offset": 12
+                },
+                {
+                    "name": "contextPatches",
+                    "type": "uint32",
+                    "offset": 16
+                },
+                {
+                    "name": "heads",
+                    "type": "uint32",
+                    "offset": 20
+                },
+                {
+                    "name": "headDim",
+                    "type": "uint32",
+                    "offset": 24
+                },
+                {
+                    "name": "covariates",
+                    "type": "uint32",
+                    "offset": 28
+                },
+                {
+                    "name": "isTime",
+                    "type": "uint32",
+                    "offset": 32
+                }
+            ],
+            "budgetFor": "attentionFused",
+            "specializationGridWidthId": 255
+        },
+        {
+            "name": "attentionRegisterBudget",
+            "module": "attentionRegisterBudget.spv",
+            "localSize": [
+                64,
+                1,
+                1
+            ],
+            "bindings": [
+                {
+                    "binding": 0,
+                    "name": "q",
+                    "access": "read"
+                },
+                {
+                    "binding": 1,
+                    "name": "keys",
+                    "access": "read"
+                },
+                {
+                    "binding": 2,
+                    "name": "values",
+                    "access": "read"
+                },
+                {
+                    "binding": 3,
+                    "name": "metadata",
+                    "access": "read"
+                },
+                {
+                    "binding": 4,
+                    "name": "output",
+                    "access": "write"
+                }
+            ],
+            "pushBytes": 36,
+            "push": [
+                {
+                    "name": "rows",
+                    "type": "uint32",
+                    "offset": 0
+                },
+                {
+                    "name": "count",
+                    "type": "uint32",
+                    "offset": 4
+                },
+                {
+                    "name": "base",
+                    "type": "uint32",
+                    "offset": 8
+                },
+                {
+                    "name": "encoded",
+                    "type": "uint32",
+                    "offset": 12
+                },
+                {
+                    "name": "contextPatches",
+                    "type": "uint32",
+                    "offset": 16
+                },
+                {
+                    "name": "heads",
+                    "type": "uint32",
+                    "offset": 20
+                },
+                {
+                    "name": "headDim",
+                    "type": "uint32",
+                    "offset": 24
+                },
+                {
+                    "name": "covariates",
+                    "type": "uint32",
+                    "offset": 28
+                },
+                {
+                    "name": "isTime",
+                    "type": "uint32",
+                    "offset": 32
+                }
+            ],
+            "budgetFor": "attentionRegister",
+            "specializationGridWidthId": 255
+        },
+        {
+            "name": "attentionTileBudget",
+            "module": "attentionTileBudget.spv",
+            "localSize": [
+                64,
+                8,
+                1
+            ],
+            "bindings": [
+                {
+                    "binding": 0,
+                    "name": "q",
+                    "access": "read"
+                },
+                {
+                    "binding": 1,
+                    "name": "keys",
+                    "access": "read"
+                },
+                {
+                    "binding": 2,
+                    "name": "values",
+                    "access": "read"
+                },
+                {
+                    "binding": 3,
+                    "name": "metadata",
+                    "access": "read"
+                },
+                {
+                    "binding": 4,
+                    "name": "output",
+                    "access": "write"
+                }
+            ],
+            "pushBytes": 36,
+            "push": [
+                {
+                    "name": "rows",
+                    "type": "uint32",
+                    "offset": 0
+                },
+                {
+                    "name": "count",
+                    "type": "uint32",
+                    "offset": 4
+                },
+                {
+                    "name": "base",
+                    "type": "uint32",
+                    "offset": 8
+                },
+                {
+                    "name": "encoded",
+                    "type": "uint32",
+                    "offset": 12
+                },
+                {
+                    "name": "contextPatches",
+                    "type": "uint32",
+                    "offset": 16
+                },
+                {
+                    "name": "heads",
+                    "type": "uint32",
+                    "offset": 20
+                },
+                {
+                    "name": "headDim",
+                    "type": "uint32",
+                    "offset": 24
+                },
+                {
+                    "name": "covariates",
+                    "type": "uint32",
+                    "offset": 28
+                },
+                {
+                    "name": "isTime",
+                    "type": "uint32",
+                    "offset": 32
+                }
+            ],
+            "requiredDeviceLimits": {
+                "maxComputeWorkGroupInvocations": 512,
+                "maxComputeSharedMemorySize": 39168
+            },
+            "budgetFor": "attentionTile",
+            "specializationGridWidthId": 255
+        },
+        {
+            "name": "gemvBudget",
+            "module": "gemvBudget.spv",
+            "localSize": [
+                64,
+                1,
+                1
+            ],
+            "bindings": [
+                {
+                    "binding": 0,
+                    "name": "input",
+                    "access": "read"
+                },
+                {
+                    "binding": 1,
+                    "name": "weight",
+                    "access": "read"
+                },
+                {
+                    "binding": 2,
+                    "name": "bias",
+                    "access": "read"
+                },
+                {
+                    "binding": 3,
+                    "name": "output",
+                    "access": "write"
+                }
+            ],
+            "pushBytes": 16,
+            "push": [
+                {
+                    "name": "rows",
+                    "type": "uint32",
+                    "offset": 0
+                },
+                {
+                    "name": "columns",
+                    "type": "uint32",
+                    "offset": 4
+                },
+                {
+                    "name": "inner",
+                    "type": "uint32",
+                    "offset": 8
+                },
+                {
+                    "name": "useBias",
+                    "type": "uint32",
+                    "offset": 12
+                }
+            ],
+            "budgetFor": "gemv",
+            "specializationGridWidthId": 255
+        },
+        {
+            "name": "attentionCausalBudget",
+            "module": "attentionCausalBudget.spv",
+            "localSize": [
+                64,
+                8,
+                1
+            ],
+            "bindings": [
+                {
+                    "binding": 0,
+                    "name": "q",
+                    "access": "read"
+                },
+                {
+                    "binding": 1,
+                    "name": "keys",
+                    "access": "read"
+                },
+                {
+                    "binding": 2,
+                    "name": "values",
+                    "access": "read"
+                },
+                {
+                    "binding": 3,
+                    "name": "metadata",
+                    "access": "read"
+                },
+                {
+                    "binding": 4,
+                    "name": "output",
+                    "access": "write"
+                }
+            ],
+            "pushBytes": 36,
+            "push": [
+                {
+                    "name": "rows",
+                    "type": "uint32",
+                    "offset": 0
+                },
+                {
+                    "name": "count",
+                    "type": "uint32",
+                    "offset": 4
+                },
+                {
+                    "name": "base",
+                    "type": "uint32",
+                    "offset": 8
+                },
+                {
+                    "name": "encoded",
+                    "type": "uint32",
+                    "offset": 12
+                },
+                {
+                    "name": "contextPatches",
+                    "type": "uint32",
+                    "offset": 16
+                },
+                {
+                    "name": "heads",
+                    "type": "uint32",
+                    "offset": 20
+                },
+                {
+                    "name": "headDim",
+                    "type": "uint32",
+                    "offset": 24
+                },
+                {
+                    "name": "covariates",
+                    "type": "uint32",
+                    "offset": 28
+                },
+                {
+                    "name": "isTime",
+                    "type": "uint32",
+                    "offset": 32
+                }
+            ],
+            "requiredDeviceLimits": {
+                "maxComputeWorkGroupInvocations": 512,
+                "maxComputeSharedMemorySize": 39168
+            },
+            "budgetFor": "attentionCausal",
+            "specializationGridWidthId": 255
+        },
+        {
+            "name": "attentionDecodeBudget",
+            "module": "attentionDecodeBudget.spv",
+            "localSize": [
+                64,
+                1,
+                1
+            ],
+            "bindings": [
+                {
+                    "binding": 0,
+                    "name": "q",
+                    "access": "read"
+                },
+                {
+                    "binding": 1,
+                    "name": "keys",
+                    "access": "read"
+                },
+                {
+                    "binding": 2,
+                    "name": "values",
+                    "access": "read"
+                },
+                {
+                    "binding": 3,
+                    "name": "metadata",
+                    "access": "read"
+                },
+                {
+                    "binding": 4,
+                    "name": "output",
+                    "access": "write"
+                }
+            ],
+            "pushBytes": 40,
+            "push": [
+                {
+                    "name": "rows",
+                    "type": "uint32",
+                    "offset": 0
+                },
+                {
+                    "name": "count",
+                    "type": "uint32",
+                    "offset": 4
+                },
+                {
+                    "name": "base",
+                    "type": "uint32",
+                    "offset": 8
+                },
+                {
+                    "name": "encoded",
+                    "type": "uint32",
+                    "offset": 12
+                },
+                {
+                    "name": "contextPatches",
+                    "type": "uint32",
+                    "offset": 16
+                },
+                {
+                    "name": "heads",
+                    "type": "uint32",
+                    "offset": 20
+                },
+                {
+                    "name": "headDim",
+                    "type": "uint32",
+                    "offset": 24
+                },
+                {
+                    "name": "covariates",
+                    "type": "uint32",
+                    "offset": 28
+                },
+                {
+                    "name": "isTime",
+                    "type": "uint32",
+                    "offset": 32
+                },
+                {
+                    "name": "chunkKeys",
+                    "type": "uint32",
+                    "offset": 36
+                }
+            ],
+            "requiredDeviceLimits": {
+                "maxPushConstantsSize": 40,
+                "maxComputeSharedMemorySize": 17408
+            },
+            "budgetFor": "attentionDecode",
+            "specializationGridWidthId": 255
+        },
+        {
+            "name": "attentionDecodeMergeBudget",
+            "module": "attentionDecodeMergeBudget.spv",
+            "localSize": [
+                64,
+                1,
+                1
+            ],
+            "bindings": [
+                {
+                    "binding": 0,
+                    "name": "partial",
+                    "access": "read"
+                },
+                {
+                    "binding": 1,
+                    "name": "output",
+                    "access": "write"
+                }
+            ],
+            "pushBytes": 12,
+            "push": [
+                {
+                    "name": "rows",
+                    "type": "uint32",
+                    "offset": 0
+                },
+                {
+                    "name": "heads",
+                    "type": "uint32",
+                    "offset": 4
+                },
+                {
+                    "name": "splits",
+                    "type": "uint32",
+                    "offset": 8
+                }
+            ],
+            "budgetFor": "attentionDecodeMerge",
+            "specializationGridWidthId": 255
+        },
+        {
+            "name": "attentionSubgroupBudget",
+            "module": "attentionSubgroupBudget.spv",
+            "localSize": [
+                64,
+                8,
+                1
+            ],
+            "bindings": [
+                {
+                    "binding": 0,
+                    "name": "q",
+                    "access": "read"
+                },
+                {
+                    "binding": 1,
+                    "name": "keys",
+                    "access": "read"
+                },
+                {
+                    "binding": 2,
+                    "name": "values",
+                    "access": "read"
+                },
+                {
+                    "binding": 3,
+                    "name": "metadata",
+                    "access": "read"
+                },
+                {
+                    "binding": 4,
+                    "name": "output",
+                    "access": "write"
+                }
+            ],
+            "pushBytes": 36,
+            "push": [
+                {
+                    "name": "rows",
+                    "type": "uint32",
+                    "offset": 0
+                },
+                {
+                    "name": "count",
+                    "type": "uint32",
+                    "offset": 4
+                },
+                {
+                    "name": "base",
+                    "type": "uint32",
+                    "offset": 8
+                },
+                {
+                    "name": "encoded",
+                    "type": "uint32",
+                    "offset": 12
+                },
+                {
+                    "name": "contextPatches",
+                    "type": "uint32",
+                    "offset": 16
+                },
+                {
+                    "name": "heads",
+                    "type": "uint32",
+                    "offset": 20
+                },
+                {
+                    "name": "headDim",
+                    "type": "uint32",
+                    "offset": 24
+                },
+                {
+                    "name": "covariates",
+                    "type": "uint32",
+                    "offset": 28
+                },
+                {
+                    "name": "isTime",
+                    "type": "uint32",
+                    "offset": 32
+                }
+            ],
+            "requiredDeviceLimits": {
+                "maxComputeWorkGroupInvocations": 512,
+                "maxComputeSharedMemorySize": 39300
+            },
+            "requiredSubgroupOperations": [
+                "Basic",
+                "Vote",
+                "Arithmetic"
+            ],
+            "budgetFor": "attentionSubgroup",
+            "specializationGridWidthId": 255
+        },
+        {
+            "name": "gemmWideBudget",
+            "module": "gemmWideBudget.spv",
+            "localSize": [
+                16,
+                16,
+                1
+            ],
+            "bindings": [
+                {
+                    "binding": 0,
+                    "name": "input",
+                    "access": "read"
+                },
+                {
+                    "binding": 1,
+                    "name": "weight",
+                    "access": "read"
+                },
+                {
+                    "binding": 2,
+                    "name": "bias",
+                    "access": "read"
+                },
+                {
+                    "binding": 3,
+                    "name": "output",
+                    "access": "write"
+                }
+            ],
+            "pushBytes": 16,
+            "push": [
+                {
+                    "name": "rows",
+                    "type": "uint32",
+                    "offset": 0
+                },
+                {
+                    "name": "columns",
+                    "type": "uint32",
+                    "offset": 4
+                },
+                {
+                    "name": "inner",
+                    "type": "uint32",
+                    "offset": 8
+                },
+                {
+                    "name": "useBias",
+                    "type": "uint32",
+                    "offset": 12
+                }
+            ],
+            "requiredDeviceLimits": {
+                "maxComputeSharedMemorySize": 8256
+            },
+            "budgetFor": "gemmWide",
+            "specializationGridWidthId": 255
+        },
+        {
+            "name": "attentionPackedBudget",
+            "module": "attentionPackedBudget.spv",
+            "localSize": [
+                16,
+                8,
+                1
+            ],
+            "bindings": [
+                {
+                    "binding": 0,
+                    "name": "q",
+                    "access": "read"
+                },
+                {
+                    "binding": 1,
+                    "name": "keys",
+                    "access": "read"
+                },
+                {
+                    "binding": 2,
+                    "name": "values",
+                    "access": "read"
+                },
+                {
+                    "binding": 3,
+                    "name": "metadata",
+                    "access": "read"
+                },
+                {
+                    "binding": 4,
+                    "name": "output",
+                    "access": "write"
+                }
+            ],
+            "pushBytes": 36,
+            "push": [
+                {
+                    "name": "rows",
+                    "type": "uint32",
+                    "offset": 0
+                },
+                {
+                    "name": "count",
+                    "type": "uint32",
+                    "offset": 4
+                },
+                {
+                    "name": "base",
+                    "type": "uint32",
+                    "offset": 8
+                },
+                {
+                    "name": "encoded",
+                    "type": "uint32",
+                    "offset": 12
+                },
+                {
+                    "name": "contextPatches",
+                    "type": "uint32",
+                    "offset": 16
+                },
+                {
+                    "name": "heads",
+                    "type": "uint32",
+                    "offset": 20
+                },
+                {
+                    "name": "headDim",
+                    "type": "uint32",
+                    "offset": 24
+                },
+                {
+                    "name": "covariates",
+                    "type": "uint32",
+                    "offset": 28
+                },
+                {
+                    "name": "isTime",
+                    "type": "uint32",
+                    "offset": 32
+                }
+            ],
+            "requiredDeviceLimits": {
+                "maxComputeWorkGroupInvocations": 128,
+                "maxComputeSharedMemorySize": 37632
+            },
+            "budgetFor": "attentionPacked",
+            "specializationGridWidthId": 255
+        },
+        {
+            "name": "siluGridBudget",
+            "module": "siluGridBudget.spv",
+            "localSize": [
+                64,
+                1,
+                1
+            ],
+            "bindings": [
+                {
+                    "binding": 0,
+                    "name": "input",
+                    "access": "read"
+                },
+                {
+                    "binding": 1,
+                    "name": "output",
+                    "access": "write"
+                }
+            ],
+            "pushBytes": 4,
+            "push": [
+                {
+                    "name": "count",
+                    "type": "uint32",
+                    "offset": 0
+                }
+            ],
+            "budgetFor": "siluGrid",
+            "specializationGridWidthId": 255
+        },
+        {
+            "name": "attentionPrefixBudget",
+            "module": "attentionPrefixBudget.spv",
+            "localSize": [
+                64,
+                1,
+                1
+            ],
+            "bindings": [
+                {
+                    "binding": 0,
+                    "name": "q",
+                    "access": "read"
+                },
+                {
+                    "binding": 1,
+                    "name": "keys",
+                    "access": "read"
+                },
+                {
+                    "binding": 2,
+                    "name": "values",
+                    "access": "read"
+                },
+                {
+                    "binding": 3,
+                    "name": "metadata",
+                    "access": "read"
+                },
+                {
+                    "binding": 4,
+                    "name": "output",
+                    "access": "write"
+                }
+            ],
+            "pushBytes": 40,
+            "push": [
+                {
+                    "name": "rows",
+                    "type": "uint32",
+                    "offset": 0
+                },
+                {
+                    "name": "count",
+                    "type": "uint32",
+                    "offset": 4
+                },
+                {
+                    "name": "base",
+                    "type": "uint32",
+                    "offset": 8
+                },
+                {
+                    "name": "encoded",
+                    "type": "uint32",
+                    "offset": 12
+                },
+                {
+                    "name": "contextPatches",
+                    "type": "uint32",
+                    "offset": 16
+                },
+                {
+                    "name": "heads",
+                    "type": "uint32",
+                    "offset": 20
+                },
+                {
+                    "name": "headDim",
+                    "type": "uint32",
+                    "offset": 24
+                },
+                {
+                    "name": "covariates",
+                    "type": "uint32",
+                    "offset": 28
+                },
+                {
+                    "name": "isTime",
+                    "type": "uint32",
+                    "offset": 32
+                },
+                {
+                    "name": "prefixRows",
+                    "type": "uint32",
+                    "offset": 36
+                }
+            ],
+            "budgetFor": "attentionPrefix",
+            "specializationGridWidthId": 255
+        },
+        {
+            "name": "attentionGroupBudget",
+            "module": "attentionGroupBudget.spv",
+            "localSize": [
+                64,
+                1,
+                1
+            ],
+            "bindings": [
+                {
+                    "binding": 0,
+                    "name": "q",
+                    "access": "read"
+                },
+                {
+                    "binding": 1,
+                    "name": "keys",
+                    "access": "read"
+                },
+                {
+                    "binding": 2,
+                    "name": "values",
+                    "access": "read"
+                },
+                {
+                    "binding": 3,
+                    "name": "metadata",
+                    "access": "read"
+                },
+                {
+                    "binding": 4,
+                    "name": "output",
+                    "access": "write"
+                }
+            ],
+            "pushBytes": 36,
+            "push": [
+                {
+                    "name": "rows",
+                    "type": "uint32",
+                    "offset": 0
+                },
+                {
+                    "name": "count",
+                    "type": "uint32",
+                    "offset": 4
+                },
+                {
+                    "name": "base",
+                    "type": "uint32",
+                    "offset": 8
+                },
+                {
+                    "name": "encoded",
+                    "type": "uint32",
+                    "offset": 12
+                },
+                {
+                    "name": "contextPatches",
+                    "type": "uint32",
+                    "offset": 16
+                },
+                {
+                    "name": "heads",
+                    "type": "uint32",
+                    "offset": 20
+                },
+                {
+                    "name": "headDim",
+                    "type": "uint32",
+                    "offset": 24
+                },
+                {
+                    "name": "covariates",
+                    "type": "uint32",
+                    "offset": 28
+                },
+                {
+                    "name": "isTime",
+                    "type": "uint32",
+                    "offset": 32
+                }
+            ],
+            "budgetFor": "attentionGroup",
+            "specializationGridWidthId": 255
+        },
+        {
+            "name": "attentionOrderedBudget",
+            "module": "attentionOrderedBudget.spv",
+            "localSize": [
+                64,
+                1,
+                1
+            ],
+            "bindings": [
+                {
+                    "binding": 0,
+                    "name": "q",
+                    "access": "read"
+                },
+                {
+                    "binding": 1,
+                    "name": "keys",
+                    "access": "read"
+                },
+                {
+                    "binding": 2,
+                    "name": "values",
+                    "access": "read"
+                },
+                {
+                    "binding": 3,
+                    "name": "metadata",
+                    "access": "read"
+                },
+                {
+                    "binding": 4,
+                    "name": "output",
+                    "access": "write"
+                }
+            ],
+            "pushBytes": 40,
+            "push": [
+                {
+                    "name": "rows",
+                    "type": "uint32",
+                    "offset": 0
+                },
+                {
+                    "name": "count",
+                    "type": "uint32",
+                    "offset": 4
+                },
+                {
+                    "name": "base",
+                    "type": "uint32",
+                    "offset": 8
+                },
+                {
+                    "name": "encoded",
+                    "type": "uint32",
+                    "offset": 12
+                },
+                {
+                    "name": "contextPatches",
+                    "type": "uint32",
+                    "offset": 16
+                },
+                {
+                    "name": "heads",
+                    "type": "uint32",
+                    "offset": 20
+                },
+                {
+                    "name": "headDim",
+                    "type": "uint32",
+                    "offset": 24
+                },
+                {
+                    "name": "covariates",
+                    "type": "uint32",
+                    "offset": 28
+                },
+                {
+                    "name": "isTime",
+                    "type": "uint32",
+                    "offset": 32
+                },
+                {
+                    "name": "prefixRows",
+                    "type": "uint32",
+                    "offset": 36
+                }
+            ],
+            "budgetFor": "attentionOrdered",
+            "specializationGridWidthId": 255
+        },
+        {
+            "name": "rmsNormOrderedBudget",
+            "module": "rmsNormOrderedBudget.spv",
+            "localSize": [
+                64,
+                1,
+                1
+            ],
+            "bindings": [
+                {
+                    "binding": 0,
+                    "name": "input",
+                    "access": "read"
+                },
+                {
+                    "binding": 1,
+                    "name": "scale",
+                    "access": "read"
+                },
+                {
+                    "binding": 2,
+                    "name": "output",
+                    "access": "write"
+                }
+            ],
+            "pushBytes": 12,
+            "push": [
+                {
+                    "name": "rows",
+                    "type": "uint32",
+                    "offset": 0
+                },
+                {
+                    "name": "width",
+                    "type": "uint32",
+                    "offset": 4
+                },
+                {
+                    "name": "epsilon",
+                    "type": "float32",
+                    "offset": 8
+                }
+            ],
+            "budgetFor": "rmsNormOrdered",
+            "specializationGridWidthId": 255
+        },
+        {
+            "name": "elementwiseOrderedBudget",
+            "module": "elementwiseOrderedBudget.spv",
+            "localSize": [
+                64,
+                1,
+                1
+            ],
+            "bindings": [
+                {
+                    "binding": 0,
+                    "name": "first",
+                    "access": "read"
+                },
+                {
+                    "binding": 1,
+                    "name": "second",
+                    "access": "read"
+                },
+                {
+                    "binding": 2,
+                    "name": "output",
+                    "access": "write"
+                }
+            ],
+            "pushBytes": 12,
+            "push": [
+                {
+                    "name": "count",
+                    "type": "uint32",
+                    "offset": 0
+                },
+                {
+                    "name": "width",
+                    "type": "uint32",
+                    "offset": 4
+                },
+                {
+                    "name": "mode",
+                    "type": "uint32",
+                    "offset": 8
+                }
+            ],
+            "budgetFor": "elementwiseOrdered",
+            "specializationGridWidthId": 255
+        }
+    ]
+}

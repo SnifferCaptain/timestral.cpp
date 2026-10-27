@@ -1,0 +1,142 @@
+/*
+ * @file attentionPrefix.comp
+ * @brief 共享前缀与独立尾部的分块在线time注意力
+ */
+
+#version 450
+
+layout(local_size_x = 64) in;
+
+layout(set = 0, binding = 0, std430) readonly buffer Queries { float values[]; } queries;
+layout(set = 0, binding = 1, std430) readonly buffer Keys { float values[]; } keys;
+layout(set = 0, binding = 2, std430) readonly buffer Values { float values[]; } vals;
+layout(set = 0, binding = 3, std430) readonly buffer Metadata { float values[]; } meta;
+layout(set = 0, binding = 4, std430) buffer Output { float values[]; } result;
+layout(push_constant) uniform Parameters {
+    uint rows;
+    uint count;
+    uint base;
+    uint encoded;
+    uint contextPatches;
+    uint heads;
+    uint headDim;
+    uint covariates;
+    uint isTime;
+    uint prefixRows;
+} p;
+
+shared float scores[64];
+shared float reduction[64];
+
+bool timeAllowed(uint row, uint query, uint key) {
+    uint role = uint(meta.values[p.rows * p.encoded + row]);
+    if (query < p.encoded) {
+        return key < p.encoded && (query == key || (meta.values[row * p.encoded + key] != 0.0
+            && ((p.covariates != 0 && role == 2) || key <= query)));
+    }
+    if (key < p.encoded) {
+        return (p.covariates == 0 || query - p.encoded >= p.contextPatches)
+            && key < p.contextPatches && meta.values[row * p.encoded + key] != 0.0;
+    }
+    uint queryDec = query - p.encoded;
+    uint keyDec = key - p.encoded;
+    return query == key || (keyDec <= queryDec && (p.covariates == 0
+        || (queryDec >= p.contextPatches && keyDec >= p.contextPatches)));
+}
+
+bool variateAllowed(uint slot, uint query, uint key) {
+    if (query == key) {
+        return true;
+    }
+    uint offset = p.rows * p.encoded;
+    if (meta.values[offset + p.rows + query] != meta.values[offset + p.rows + key]
+        || (slot < p.encoded && meta.values[key * p.encoded + slot] == 0.0)) {
+        return false;
+    }
+    uint queryRole = uint(meta.values[offset + query]);
+    uint keyRole = uint(meta.values[offset + key]);
+    return p.covariates == 0 || !((queryRole != 0 && keyRole == 0) || (queryRole == 2 && keyRole != 2));
+}
+
+uint keyOffsetFor(uint row, uint key, uint dim, uint head) {
+    uint token = key < p.base
+        ? (row % p.prefixRows) * p.base + key
+        : p.prefixRows * p.base + row * p.count + key - p.base;
+    return token * dim + head * p.headDim;
+}
+
+void main() {
+    uint queryHead = gl_WorkGroupID.y * gl_NumWorkGroups.x + gl_WorkGroupID.x;
+    if (queryHead >= p.rows * p.count * p.heads || p.prefixRows == 0 || p.isTime == 0) {
+        return;
+    }
+    uint lane = gl_LocalInvocationID.x;
+    uint head = queryHead % p.heads;
+    uint token = queryHead / p.heads;
+    uint row = token / p.count;
+    uint localSlot = token % p.count;
+    uint keyCount = p.isTime != 0 ? p.base + p.count : p.rows;
+    uint dim = p.heads * p.headDim;
+    uint outputOffset = token * dim + head * p.headDim;
+    precise float maximum = uintBitsToFloat(0xff800000u);
+    precise float denominator = 0.0;
+    for (uint j = lane; j < p.headDim; j += 64) {
+        result.values[outputOffset + j] = 0.0;
+    }
+    for (uint first = 0; first < keyCount; first += 64) {
+        uint key = first + lane;
+        precise float score = uintBitsToFloat(0xff800000u);
+        bool allowed = key < keyCount && (p.isTime != 0
+            ? timeAllowed(row, p.base + localSlot, key) : variateAllowed(p.base + localSlot, row, key));
+        if (allowed) {
+            uint keyOffset = keyOffsetFor(row, key, dim, head);
+            precise float sum = 0.0;
+            for (uint j = 0; j < p.headDim; ++j) {
+                precise float product = queries.values[outputOffset + j] * keys.values[keyOffset + j];
+                sum = sum + product;
+            }
+            precise float factor = 1.0 / sqrt(float(p.headDim));
+            score = sum * factor;
+        }
+        reduction[lane] = score;
+        barrier();
+        for (uint stride = 32; stride > 0; stride >>= 1) {
+            if (lane < stride) {
+                reduction[lane] = max(reduction[lane], reduction[lane + stride]);
+            }
+            barrier();
+        }
+        precise float nextMaximum = max(maximum, reduction[0]);
+        precise float alpha = isinf(maximum) ? 0.0 : exp(maximum - nextMaximum);
+        precise float weight = allowed ? exp(score - nextMaximum) : 0.0;
+        // 所有lane先读完最大值，才可把同一共享归约区改作分母求和
+        barrier();
+        scores[lane] = weight;
+        reduction[lane] = weight;
+        barrier();
+        for (uint stride = 32; stride > 0; stride >>= 1) {
+            if (lane < stride) {
+                precise float combined = reduction[lane] + reduction[lane + stride];
+                reduction[lane] = combined;
+            }
+            barrier();
+        }
+        precise float scaledDenominator = denominator * alpha;
+        denominator = scaledDenominator + reduction[0];
+        for (uint j = lane; j < p.headDim; j += 64) {
+            precise float accumulated = result.values[outputOffset + j] * alpha;
+            for (uint localKey = 0; localKey < min(64u, keyCount - first); ++localKey) {
+                uint selected = first + localKey;
+                uint valueOffset = keyOffsetFor(row, selected, dim, head) + j;
+                precise float product = scores[localKey] * vals.values[valueOffset];
+                accumulated = accumulated + product;
+            }
+            result.values[outputOffset + j] = accumulated;
+        }
+        maximum = nextMaximum;
+        barrier();
+    }
+    for (uint j = lane; j < p.headDim; j += 64) {
+        result.values[outputOffset + j] = denominator > 0.0 ? result.values[outputOffset + j] / denominator : 0.0;
+    }
+}

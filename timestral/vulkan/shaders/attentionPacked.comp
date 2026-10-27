@@ -1,0 +1,176 @@
+/*
+ * @file attentionPacked.comp
+ * @brief 八query的四score四PV寄存器分块在线注意力
+ */
+
+#version 450
+
+layout(local_size_x = 16, local_size_y = 8) in;
+
+layout(set = 0, binding = 0, std430) readonly buffer Queries { float values[]; } queries;
+layout(set = 0, binding = 1, std430) readonly buffer Keys { float values[]; } keys;
+layout(set = 0, binding = 2, std430) readonly buffer Values { float values[]; } vals;
+layout(set = 0, binding = 3, std430) readonly buffer Metadata { float values[]; } meta;
+layout(set = 0, binding = 4, std430) buffer Output { float values[]; } result;
+layout(push_constant) uniform Parameters {
+    uint rows;
+    uint count;
+    uint base;
+    uint encoded;
+    uint contextPatches;
+    uint heads;
+    uint headDim;
+    uint covariates;
+    uint isTime;
+} p;
+
+shared float tileQ[8][64];
+shared float tileK[64][65];
+shared float tileV[64][64];
+shared float scores[8][64];
+shared float reduction[8][16];
+
+bool timeAllowed(uint row, uint query, uint key) {
+    uint role = uint(meta.values[p.rows * p.encoded + row]);
+    if (query < p.encoded) {
+        return key < p.encoded && (query == key || (meta.values[row * p.encoded + key] != 0.0
+            && ((p.covariates != 0 && role == 2) || key <= query)));
+    }
+    if (key < p.encoded) {
+        return (p.covariates == 0 || query - p.encoded >= p.contextPatches)
+            && key < p.contextPatches && meta.values[row * p.encoded + key] != 0.0;
+    }
+    uint queryDec = query - p.encoded;
+    uint keyDec = key - p.encoded;
+    return query == key || (keyDec <= queryDec && (p.covariates == 0
+        || (queryDec >= p.contextPatches && keyDec >= p.contextPatches)));
+}
+
+void main() {
+    uint group = gl_WorkGroupID.y * gl_NumWorkGroups.x + gl_WorkGroupID.x;
+    uint queryBlocks = (p.count + 7) / 8;
+    if (group >= p.rows * queryBlocks * p.heads) {
+        return;
+    }
+    uint lane = gl_LocalInvocationID.x;
+    uint localQuery = gl_LocalInvocationID.y;
+    uint threadIndex = localQuery * 16 + lane;
+    uint head = group % p.heads;
+    uint block = group / p.heads;
+    uint row = block / queryBlocks;
+    uint slot = (block % queryBlocks) * 8 + localQuery;
+    bool validQuery = slot < p.count;
+    uint keyCount = p.base + p.count;
+    uint loopEnd = keyCount;
+    uint lastQuery = p.base + min((block % queryBlocks) * 8 + 7, p.count - 1);
+    uint role = uint(meta.values[p.rows * p.encoded + row]);
+    if (lastQuery < p.encoded && (p.covariates == 0 || role != 2)) {
+        loopEnd = min(keyCount, (lastQuery / 64 + 1) * 64);
+    }
+    uint dim = p.heads * 64;
+    uint outputOffset = (row * p.count + slot) * dim + head * 64;
+    for (uint j = lane; j < 64; j += 16) {
+        tileQ[localQuery][j] = validQuery ? queries.values[outputOffset + j] : 0.0;
+    }
+    precise float maximum = uintBitsToFloat(0xff800000u);
+    precise float denominator = 0.0;
+    precise float pv0 = 0.0;
+    precise float pv1 = 0.0;
+    precise float pv2 = 0.0;
+    precise float pv3 = 0.0;
+    for (uint first = 0; first < loopEnd; first += 64) {
+        for (uint index = threadIndex; index < 4096; index += 128) {
+            uint localKey = index / 64;
+            uint j = index % 64;
+            uint selected = first + localKey;
+            uint offset = (row * keyCount + selected) * dim + head * 64 + j;
+            tileK[localKey][j] = selected < keyCount ? keys.values[offset] : 0.0;
+            tileV[localKey][j] = selected < keyCount ? vals.values[offset] : 0.0;
+        }
+        barrier();
+        uint key0 = first + lane + 0;
+        bool allowed0 = validQuery && key0 < keyCount && timeAllowed(row, p.base + slot, key0);
+        precise float sum0 = 0.0;
+        uint key1 = first + lane + 16;
+        bool allowed1 = validQuery && key1 < keyCount && timeAllowed(row, p.base + slot, key1);
+        precise float sum1 = 0.0;
+        uint key2 = first + lane + 32;
+        bool allowed2 = validQuery && key2 < keyCount && timeAllowed(row, p.base + slot, key2);
+        precise float sum2 = 0.0;
+        uint key3 = first + lane + 48;
+        bool allowed3 = validQuery && key3 < keyCount && timeAllowed(row, p.base + slot, key3);
+        precise float sum3 = 0.0;
+        if (allowed0 || allowed1 || allowed2 || allowed3) {
+            for (uint j = 0; j < 64; ++j) {
+                precise float q = tileQ[localQuery][j];
+                precise float product0 = q * tileK[lane + 0][j];
+                sum0 = sum0 + product0;
+                precise float product1 = q * tileK[lane + 16][j];
+                sum1 = sum1 + product1;
+                precise float product2 = q * tileK[lane + 32][j];
+                sum2 = sum2 + product2;
+                precise float product3 = q * tileK[lane + 48][j];
+                sum3 = sum3 + product3;
+            }
+        }
+        precise float score0 = allowed0 ? sum0 * 0.125 : uintBitsToFloat(0xff800000u);
+        precise float score1 = allowed1 ? sum1 * 0.125 : uintBitsToFloat(0xff800000u);
+        precise float score2 = allowed2 ? sum2 * 0.125 : uintBitsToFloat(0xff800000u);
+        precise float score3 = allowed3 ? sum3 * 0.125 : uintBitsToFloat(0xff800000u);
+        reduction[localQuery][lane] = max(max(score0, score1), max(score2, score3));
+        barrier();
+        for (uint stride = 8; stride > 0; stride >>= 1) {
+            if (lane < stride) {
+                reduction[localQuery][lane] = max(reduction[localQuery][lane], reduction[localQuery][lane + stride]);
+            }
+            barrier();
+        }
+        precise float nextMaximum = max(maximum, reduction[localQuery][0]);
+        precise float alpha = isinf(maximum) ? 0.0 : exp(maximum - nextMaximum);
+        precise float weight0 = allowed0 ? exp(score0 - nextMaximum) : 0.0;
+        scores[localQuery][lane + 0] = weight0;
+        precise float weight1 = allowed1 ? exp(score1 - nextMaximum) : 0.0;
+        scores[localQuery][lane + 16] = weight1;
+        precise float weight2 = allowed2 ? exp(score2 - nextMaximum) : 0.0;
+        scores[localQuery][lane + 32] = weight2;
+        precise float weight3 = allowed3 ? exp(score3 - nextMaximum) : 0.0;
+        scores[localQuery][lane + 48] = weight3;
+        barrier();
+        precise float sum01 = weight0 + weight1;
+        precise float sum23 = weight2 + weight3;
+        reduction[localQuery][lane] = sum01 + sum23;
+        barrier();
+        for (uint stride = 8; stride > 0; stride >>= 1) {
+            if (lane < stride) {
+                precise float combined = reduction[localQuery][lane] + reduction[localQuery][lane + stride];
+                reduction[localQuery][lane] = combined;
+            }
+            barrier();
+        }
+        precise float scaledDenominator = denominator * alpha;
+        denominator = scaledDenominator + reduction[localQuery][0];
+        pv0 = pv0 * alpha;
+        pv1 = pv1 * alpha;
+        pv2 = pv2 * alpha;
+        pv3 = pv3 * alpha;
+        for (uint localKey = 0; localKey < min(64u, keyCount - first); ++localKey) {
+            precise float weight = scores[localQuery][localKey];
+            precise float product0 = weight * tileV[localKey][lane + 0];
+            pv0 = pv0 + product0;
+            precise float product1 = weight * tileV[localKey][lane + 16];
+            pv1 = pv1 + product1;
+            precise float product2 = weight * tileV[localKey][lane + 32];
+            pv2 = pv2 + product2;
+            precise float product3 = weight * tileV[localKey][lane + 48];
+            pv3 = pv3 + product3;
+        }
+        maximum = nextMaximum;
+        barrier();
+    }
+    if (validQuery) {
+        result.values[outputOffset + lane + 0] = denominator > 0.0 ? pv0 / denominator : 0.0;
+        result.values[outputOffset + lane + 16] = denominator > 0.0 ? pv1 / denominator : 0.0;
+        result.values[outputOffset + lane + 32] = denominator > 0.0 ? pv2 / denominator : 0.0;
+        result.values[outputOffset + lane + 48] = denominator > 0.0 ? pv3 / denominator : 0.0;
+    }
+}

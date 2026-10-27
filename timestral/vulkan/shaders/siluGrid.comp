@@ -1,0 +1,31 @@
+/*
+ * @file siluGrid.comp
+ * @brief 支持二维工作组展开的FP32逐元素SiLU激活
+ */
+
+#version 450
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0, std430) readonly buffer InputBuffer {
+    float values[];
+} inputData;
+
+layout(set = 0, binding = 1, std430) writeonly buffer OutputBuffer {
+    float values[];
+} outputData;
+
+layout(push_constant) uniform Parameters {
+    uint count;
+} parameters;
+
+void main() {
+    uint index = gl_GlobalInvocationID.y * gl_NumWorkGroups.x * gl_WorkGroupSize.x + gl_GlobalInvocationID.x;
+    if (index >= parameters.count) {
+        return;
+    }
+
+    precise float value = inputData.values[index];
+    precise float denominator = 1.0 + exp(-value);
+    outputData.values[index] = value / denominator;
+}

@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="640" viewBox="0 0 1000 640" font-family="Microsoft YaHei, PingFang SC, Noto Sans CJK SC, sans-serif" font-size="14" fill="#1f2933">
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#52606d"/></marker>
+</defs>
+<rect x="0" y="0" width="1000" height="640" fill="#fafbfc"/>
+<text x="500" y="34" text-anchor="middle" font-size="20" font-weight="bold">C++仓库模块划分与依赖方向</text>
+<rect x="40" y="62" width="180" height="66" rx="6" fill="#eef0f2" stroke="#9aa5b1" stroke-width="1.5"/>
+<text x="130" y="89.9" text-anchor="middle" font-size="14" font-weight="bold">调用者</text>
+<text x="130" y="109.9" text-anchor="middle" font-size="13">example、tests、应用</text>
+<rect x="300" y="62" width="400" height="66" rx="6" fill="#e8f1fd" stroke="#4c8bf5" stroke-width="1.5"/>
+<text x="500" y="89.9" text-anchor="middle" font-size="14" font-weight="bold">timestral.hpp / timestral.cpp</text>
+<text x="500" y="109.9" text-anchor="middle" font-size="13">Timestral、Sample、Settings、Request、Result、Policy</text>
+<path d="M220,95 H296" fill="none" stroke="#52606d" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M500,128 V156" fill="none" stroke="#52606d" stroke-width="1.6" marker-end="url(#arrow)"/>
+<rect x="40" y="160" width="920" height="330" rx="10" fill="#f5f7fa" stroke="#9aa5b1" stroke-width="1.5"/>
+<text x="56" y="184" text-anchor="start" font-size="14" fill="#1f2933" font-weight="bold">timestral/utils：与后端无关的基础设施与公共模型语义</text>
+<rect x="60" y="198" width="280" height="58" rx="6" fill="#ffffff" stroke="#9aa5b1" stroke-width="1.5"/>
+<text x="200" y="221.9" text-anchor="middle" font-size="14" font-weight="bold">service</text>
+<text x="200" y="241.9" text-anchor="middle" font-size="13">调度队列、三种策略、前缀树</text>
+<rect x="360" y="198" width="320" height="58" rx="6" fill="#ffffff" stroke="#9aa5b1" stroke-width="1.5"/>
+<text x="520" y="221.9" text-anchor="middle" font-size="14" font-weight="bold">condition / time / forecast</text>
+<text x="520" y="241.9" text-anchor="middle" font-size="13">网格对齐、条件分段、时间坐标、结果提取</text>
+<rect x="700" y="198" width="240" height="58" rx="6" fill="#ffffff" stroke="#9aa5b1" stroke-width="1.5"/>
+<text x="820" y="221.9" text-anchor="middle" font-size="14" font-weight="bold">engine</text>
+<text x="820" y="241.9" text-anchor="middle" font-size="13">分块自回归、refine、后处理</text>
+<rect x="60" y="274" width="340" height="58" rx="6" fill="#ffffff" stroke="#9aa5b1" stroke-width="1.5"/>
+<text x="230" y="297.9" text-anchor="middle" font-size="14" font-weight="bold">transformer</text>
+<text x="230" y="317.9" text-anchor="middle" font-size="13">公共模型编排、掩码、分页执行、分位数头</text>
+<rect x="420" y="274" width="280" height="58" rx="6" fill="#ffffff" stroke="#9aa5b1" stroke-width="1.5"/>
+<text x="560" y="297.9" text-anchor="middle" font-size="14" font-weight="bold">patch</text>
+<text x="560" y="317.9" text-anchor="middle" font-size="13">因果归一化、patch装配、位置、页键</text>
+<rect x="720" y="274" width="220" height="58" rx="6" fill="#ffffff" stroke="#9aa5b1" stroke-width="1.5"/>
+<text x="830" y="297.9" text-anchor="middle" font-size="14" font-weight="bold">cache</text>
+<text x="830" y="317.9" text-anchor="middle" font-size="13">页池、FNV页键、LRU候选</text>
+<rect x="60" y="350" width="240" height="58" rx="6" fill="#ffffff" stroke="#9aa5b1" stroke-width="1.5"/>
+<text x="180" y="373.9" text-anchor="middle" font-size="14" font-weight="bold">model.hpp</text>
+<text x="180" y="393.9" text-anchor="middle" font-size="13">后端接口timestral::Model</text>
+<rect x="320" y="350" width="260" height="58" rx="6" fill="#ffffff" stroke="#9aa5b1" stroke-width="1.5"/>
+<text x="450" y="373.9" text-anchor="middle" font-size="14" font-weight="bold">backend.hpp</text>
+<text x="450" y="393.9" text-anchor="middle" font-size="13">loadBackendModel声明</text>
+<rect x="600" y="350" width="340" height="58" rx="6" fill="#ffffff" stroke="#9aa5b1" stroke-width="1.5"/>
+<text x="770" y="373.9" text-anchor="middle" font-size="14" font-weight="bold">attention.hpp</text>
+<text x="770" y="393.9" text-anchor="middle" font-size="13">AttentionView、AttentionMask</text>
+<rect x="60" y="424" width="880" height="50" rx="6" fill="#ffffff" stroke="#9aa5b1" stroke-width="1.5"/>
+<text x="500" y="453.55" text-anchor="middle" font-size="13">tensor、config、json、safetensors、postprocess、stats：基础类型、配置与文件读取、后处理、Welford统计</text>
+<path d="M500,490 V530" fill="none" stroke="#52606d" stroke-width="1.6" marker-end="url(#arrow)"/>
+<text x="56" y="548" text-anchor="start" font-size="13" fill="#1f2933">CMake在配置期选定一个backend.cpp（TIMESTRAL_SELECTED_BACKEND），链接期唯一定义loadBackendModel，不用宏</text>
+<rect x="40" y="562" width="215" height="62" rx="6" fill="#e6f6ec" stroke="#3fa66a" stroke-width="1.5"/>
+<text x="147.5" y="587.9" text-anchor="middle" font-size="14" font-weight="bold">reference</text>
+<text x="147.5" y="607.9" text-anchor="middle" font-size="13">默认，仅C++17标准库</text>
+<rect x="275" y="562" width="215" height="62" rx="6" fill="#ffffff" stroke="#9aa5b1" stroke-width="1.5" stroke-dasharray="6 4"/>
+<text x="382.5" y="587.9" text-anchor="middle" font-size="14" font-weight="bold">eigen</text>
+<text x="382.5" y="607.9" text-anchor="middle" font-size="13">Eigen 3.4.0，可选OpenMP</text>
+<rect x="510" y="562" width="215" height="62" rx="6" fill="#ffffff" stroke="#9aa5b1" stroke-width="1.5" stroke-dasharray="6 4"/>
+<text x="617.5" y="587.9" text-anchor="middle" font-size="14" font-weight="bold">ytensor</text>
+<text x="617.5" y="607.9" text-anchor="middle" font-size="13">单头0.14，无分页增量</text>
+<rect x="745" y="562" width="215" height="62" rx="6" fill="#ffffff" stroke="#9aa5b1" stroke-width="1.5" stroke-dasharray="6 4"/>
+<text x="852.5" y="587.9" text-anchor="middle" font-size="14" font-weight="bold">blas</text>
+<text x="852.5" y="607.9" text-anchor="middle" font-size="13">自写GEMM，AVX2运行期分派</text>
+</svg>

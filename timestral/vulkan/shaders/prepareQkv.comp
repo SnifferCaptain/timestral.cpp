@@ -1,0 +1,51 @@
+/*
+ * @file prepareQkv.comp
+ * @brief QKV头布局转换与参考精度的部分RoPE
+ */
+
+#version 450
+
+layout(local_size_x = 64) in;
+
+layout(set = 0, binding = 0, std430) readonly buffer Fused { float values[]; } fused;
+layout(set = 0, binding = 1, std430) readonly buffer Rotary { float values[]; } rotary;
+layout(set = 0, binding = 2, std430) writeonly buffer Queries { float values[]; } queries;
+layout(set = 0, binding = 3, std430) writeonly buffer Keys { float values[]; } keys;
+layout(set = 0, binding = 4, std430) writeonly buffer Values { float values[]; } vals;
+layout(push_constant) uniform Parameters {
+    uint tokens;
+    uint heads;
+    uint headDim;
+    uint ropeDim;
+    uint isTime;
+} p;
+
+void main() {
+    uint index = gl_GlobalInvocationID.y * gl_NumWorkGroups.x * gl_WorkGroupSize.x + gl_GlobalInvocationID.x;
+    uint dim = p.heads * p.headDim;
+    if (index >= p.tokens * dim) {
+        return;
+    }
+    uint token = index / dim;
+    uint head = (index % dim) / p.headDim;
+    uint j = index % p.headDim;
+    uint source = token * 3 * dim + j * p.heads + head;
+    precise float q = fused.values[source];
+    precise float k = fused.values[source + dim];
+    if (p.isTime != 0 && (j < p.ropeDim / 2 || (j >= p.headDim / 2 && j < p.headDim / 2 + p.ropeDim / 2))) {
+        bool second = j >= p.headDim / 2;
+        uint pair = second ? j - p.headDim / 2 : j;
+        uint other = second ? source - p.headDim / 2 * p.heads : source + p.headDim / 2 * p.heads;
+        float cosine = rotary.values[(token * (p.ropeDim / 2) + pair) * 2];
+        float sine = rotary.values[(token * (p.ropeDim / 2) + pair) * 2 + 1];
+        precise float qFirst = q * cosine;
+        precise float qSecond = fused.values[other] * sine;
+        precise float kFirst = k * cosine;
+        precise float kSecond = fused.values[other + dim] * sine;
+        q = second ? qFirst + qSecond : qFirst - qSecond;
+        k = second ? kFirst + kSecond : kFirst - kSecond;
+    }
+    queries.values[index] = q;
+    keys.values[index] = k;
+    vals.values[index] = fused.values[source + 2 * dim];
+}

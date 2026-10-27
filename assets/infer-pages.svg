@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="560" viewBox="0 0 1000 560" font-family="Microsoft YaHei, PingFang SC, Noto Sans CJK SC, sans-serif" font-size="14" fill="#1f2933">
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#52606d"/></marker>
+</defs>
+<rect x="0" y="0" width="1000" height="560" fill="#fafbfc"/>
+<text x="500" y="34" text-anchor="middle" font-size="20" font-weight="bold">内容寻址分页前缀缓存</text>
+<circle cx="80" cy="200" r="24" fill="#eef0f2" stroke="#9aa5b1" stroke-width="1.5"/>
+<text x="80" y="205" text-anchor="middle" font-size="14" fill="#1f2933">根</text>
+<rect x="140" y="178" width="120" height="44" rx="6" fill="#e6f6ec" stroke="#3fa66a" stroke-width="1.5"/>
+<text x="200" y="204.9" text-anchor="middle" font-size="14">页A  key1</text>
+<rect x="300" y="178" width="120" height="44" rx="6" fill="#e6f6ec" stroke="#3fa66a" stroke-width="1.5"/>
+<text x="360" y="204.9" text-anchor="middle" font-size="14">页B  key2</text>
+<rect x="460" y="128" width="120" height="44" rx="6" fill="#e8f1fd" stroke="#4c8bf5" stroke-width="1.5"/>
+<text x="520" y="154.9" text-anchor="middle" font-size="14">页C  key3</text>
+<rect x="460" y="228" width="120" height="44" rx="6" fill="#fdf0e1" stroke="#e8a33d" stroke-width="1.5"/>
+<text x="520" y="254.9" text-anchor="middle" font-size="14">页D  key3′</text>
+<path d="M104,200 H136" fill="none" stroke="#52606d" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M260,200 H296" fill="none" stroke="#52606d" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M420,192 L456,156" fill="none" stroke="#52606d" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M420,208 L456,244" fill="none" stroke="#52606d" stroke-width="1.6" marker-end="url(#arrow)"/>
+<text x="60" y="316" text-anchor="start" font-size="14" fill="#1f2933">来源s1的视图：[A, B, C]</text>
+<text x="60" y="342" text-anchor="start" font-size="14" fill="#1f2933">来源s2的视图：[A, B, D]（第3个patch内容不同）</text>
+<text x="60" y="368" text-anchor="start" font-size="14" fill="#1f2933">A、B按内容命中同一物理页，各被两个视图引用</text>
+<rect x="620" y="70" width="350" height="236" rx="6" fill="#ffffff" stroke="#4c8bf5" stroke-width="1.5"/>
+<text x="632" y="102.9" text-anchor="start" font-size="14" font-weight="bold">一页 = 一个patch × 一组V行</text>
+<text x="632" y="132.9" text-anchor="start" font-size="13">keys[8]、values[8]：每个time子层(V, 3, 64)</text>
+<text x="632" y="162.9" text-anchor="start" font-size="13">maskBits：每行能否被后续槽关注</text>
+<text x="632" y="192.9" text-anchor="start" font-size="13">positions：每行RoPE位置</text>
+<text x="632" y="222.9" text-anchor="start" font-size="13">scaleStates：每行patch末尾count、sum、m2</text>
+<text x="632" y="252.9" text-anchor="start" font-size="13">parentKey、key、inputFingerprint</text>
+<text x="632" y="282.9" text-anchor="start" font-size="13">references、lastUse、occupied</text>
+<rect x="40" y="400" width="930" height="62" rx="6" fill="#fdf0e1" stroke="#e8a33d" stroke-width="1.5"/>
+<text x="505" y="425.9" text-anchor="middle" font-size="14" font-weight="bold">key(i) = FNV-1a(种子, key(i−1), 观测位, 值的位模式, 掩码位, 位置, 配置指纹)</text>
+<text x="505" y="445.9" text-anchor="middle" font-size="13">查找时同时比对key、parentKey与inputFingerprint，inputFingerprint使用另一个种子</text>
+<text x="500" y="500" text-anchor="middle" font-size="13" fill="#3e4c59">每种通道数V一个页池，容量为Settings.cachePages，首次使用时一次分配；满时只淘汰引用计数为0的最久未用页</text>
+<text x="500" y="526" text-anchor="middle" font-size="13" fill="#3e4c59">没有可淘汰页时该请求退回全量重算；abort(streamId)归还视图引用并摘除无人引用的页键</text>
+</svg>

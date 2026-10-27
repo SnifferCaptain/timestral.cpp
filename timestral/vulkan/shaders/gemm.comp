@@ -1,0 +1,82 @@
+/*
+ * @file gemm.comp
+ * @brief FP32行主序矩阵投影与可选偏置
+ */
+
+#version 450
+
+layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+
+layout(set = 0, binding = 0, std430) readonly buffer InputBuffer {
+    float values[];
+} inputData;
+
+layout(set = 0, binding = 1, std430) readonly buffer WeightBuffer {
+    float values[];
+} weightData;
+
+// 无偏置时也由host绑定至少columns个FP32元素
+layout(set = 0, binding = 2, std430) readonly buffer BiasBuffer {
+    float values[];
+} biasData;
+
+layout(set = 0, binding = 3, std430) writeonly buffer OutputBuffer {
+    float values[];
+} outputData;
+
+layout(push_constant) uniform Parameters {
+    uint rows;
+    uint columns;
+    uint inner;
+    uint useBias;
+} parameters;
+
+shared float tileA[16][16];
+shared float tileW[16][16];
+
+void main() {
+    uint localX = gl_LocalInvocationID.x;
+    uint localY = gl_LocalInvocationID.y;
+    uint row = gl_GlobalInvocationID.y;
+    uint column = gl_GlobalInvocationID.x;
+    precise float sum = 0.0;
+    uint base = 0;
+
+    // host保证各buffer总size及dispatch索引可由uint表示
+    // 尾块线程补零并参与全部同步，不能在barrier前按输出边界退出
+    while (base < parameters.inner) {
+        uint tileWidth = min(16u, parameters.inner - base);
+        tileA[localY][localX] = 0.0;
+        tileW[localY][localX] = 0.0;
+        if (row < parameters.rows && localX < tileWidth) {
+            uint inputIndex = row * parameters.inner;
+            inputIndex += base;
+            inputIndex += localX;
+            tileA[localY][localX] = inputData.values[inputIndex];
+        }
+        if (column < parameters.columns && localY < tileWidth) {
+            uint weightIndex = column * parameters.inner;
+            weightIndex += base;
+            weightIndex += localY;
+            tileW[localY][localX] = weightData.values[weightIndex];
+        }
+        barrier();
+
+        // precise保留逐K乘加顺序，禁止将乘法与加法收缩成FMA
+        for (uint k = 0; k < tileWidth; ++k) {
+            precise float product = tileA[localY][k] * tileW[k][localX];
+            sum = sum + product;
+        }
+        barrier();
+        base += tileWidth;
+    }
+
+    if (row < parameters.rows && column < parameters.columns) {
+        if (parameters.useBias != 0) {
+            sum = sum + biasData.values[column];
+        }
+        uint outputIndex = row * parameters.columns;
+        outputIndex += column;
+        outputData.values[outputIndex] = sum;
+    }
+}

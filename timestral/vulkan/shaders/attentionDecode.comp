@@ -1,0 +1,130 @@
+/*
+ * @file attentionDecode.comp
+ * @brief 单query长KV分片的在线max分母与未归一化PV
+ */
+
+#version 450
+
+layout(local_size_x = 64) in;
+
+layout(set = 0, binding = 0, std430) readonly buffer Queries { float values[]; } queries;
+layout(set = 0, binding = 1, std430) readonly buffer Keys { float values[]; } keys;
+layout(set = 0, binding = 2, std430) readonly buffer Values { float values[]; } vals;
+layout(set = 0, binding = 3, std430) readonly buffer Metadata { float values[]; } meta;
+layout(set = 0, binding = 4, std430) buffer Output { float values[]; } result;
+layout(push_constant) uniform Parameters {
+    uint rows;
+    uint count;
+    uint base;
+    uint encoded;
+    uint contextPatches;
+    uint heads;
+    uint headDim;
+    uint covariates;
+    uint isTime;
+    uint chunkKeys;
+} p;
+
+shared float tileQ[64];
+shared float tileK[64][65];
+shared float scores[64];
+shared float reduction[64];
+
+bool timeAllowed(uint row, uint query, uint key) {
+    uint role = uint(meta.values[p.rows * p.encoded + row]);
+    if (query < p.encoded) {
+        return key < p.encoded && (query == key || (meta.values[row * p.encoded + key] != 0.0
+            && ((p.covariates != 0 && role == 2) || key <= query)));
+    }
+    if (key < p.encoded) {
+        return (p.covariates == 0 || query - p.encoded >= p.contextPatches)
+            && key < p.contextPatches && meta.values[row * p.encoded + key] != 0.0;
+    }
+    uint queryDec = query - p.encoded;
+    uint keyDec = key - p.encoded;
+    return query == key || (keyDec <= queryDec && (p.covariates == 0
+        || (queryDec >= p.contextPatches && keyDec >= p.contextPatches)));
+}
+
+void main() {
+    uint group = gl_WorkGroupID.x;
+    uint split = gl_WorkGroupID.y;
+    uint keyCount = p.base + 1;
+    uint splitCount = (keyCount + p.chunkKeys - 1) / p.chunkKeys;
+    if (group >= p.rows * p.heads || split >= splitCount) {
+        return;
+    }
+    uint lane = gl_LocalInvocationID.x;
+    uint row = group / p.heads;
+    uint head = group % p.heads;
+    uint dim = p.heads * 64;
+    uint queryOffset = row * dim + head * 64;
+    uint endKey = min(keyCount, (split + 1) * p.chunkKeys);
+    tileQ[lane] = queries.values[queryOffset + lane];
+    precise float maximum = uintBitsToFloat(0xff800000u);
+    precise float denominator = 0.0;
+    precise float accumulator = 0.0;
+
+    for (uint first = split * p.chunkKeys; first < endKey; first += 64) {
+        // 每lane沿head维加载，分片独立，不留七个无效query槽
+        for (uint index = lane; index < 4096; index += 64) {
+            uint localKey = index / 64;
+            uint j = index % 64;
+            uint selected = first + localKey;
+            uint offset = (row * keyCount + selected) * dim + head * 64 + j;
+            tileK[localKey][j] = selected < endKey ? keys.values[offset] : 0.0;
+        }
+        barrier();
+        uint key = first + lane;
+        bool allowed = key < endKey && timeAllowed(row, p.base, key);
+        precise float score = uintBitsToFloat(0xff800000u);
+        if (allowed) {
+            precise float sum = 0.0;
+            for (uint j = 0; j < 64; ++j) {
+                precise float product = tileQ[j] * tileK[lane][j];
+                sum = sum + product;
+            }
+            score = sum * 0.125;
+        }
+        reduction[lane] = score;
+        barrier();
+        for (uint stride = 32; stride > 0; stride >>= 1) {
+            if (lane < stride) {
+                reduction[lane] = max(reduction[lane], reduction[lane + stride]);
+            }
+            barrier();
+        }
+        precise float nextMaximum = max(maximum, reduction[0]);
+        precise float alpha = isinf(maximum) ? 0.0 : exp(maximum - nextMaximum);
+        precise float weight = allowed ? exp(score - nextMaximum) : 0.0;
+        barrier();
+        scores[lane] = weight;
+        reduction[lane] = weight;
+        barrier();
+        for (uint stride = 32; stride > 0; stride >>= 1) {
+            if (lane < stride) {
+                precise float combined = reduction[lane] + reduction[lane + stride];
+                reduction[lane] = combined;
+            }
+            barrier();
+        }
+        precise float scaledDenominator = denominator * alpha;
+        denominator = scaledDenominator + reduction[0];
+        precise float accumulated = accumulator * alpha;
+        for (uint localKey = 0; localKey < min(64u, endKey - first); ++localKey) {
+            uint selected = first + localKey;
+            uint offset = (row * keyCount + selected) * dim + head * 64 + lane;
+            precise float product = scores[localKey] * vals.values[offset];
+            accumulated = accumulated + product;
+        }
+        accumulator = accumulated;
+        maximum = nextMaximum;
+        barrier();
+    }
+    uint outputOffset = (group * splitCount + split) * 66;
+    result.values[outputOffset + lane] = accumulator;
+    if (lane == 0) {
+        result.values[outputOffset + 64] = maximum;
+        result.values[outputOffset + 65] = denominator;
+    }
+}
