@@ -14,18 +14,20 @@
 #include <string>
 #include <vector>
 
+#include "timestral/timestralExport.hpp"
+
 namespace timestral {
 
 class Service;
 
 // 时间单位秒，原点任意，NaN表示缺测
-struct Sample {
+struct TIMESTRAL_API Sample {
     double time = 0.0;   // 时间戳
     double value = 0.0;  // 读数
 };
 
 // 支持并发提交，共享前缀缓存按内容寻址，零引用页按LRU淘汰
-class Timestral {
+class TIMESTRAL_API Timestral {
 public:
     // Fifo顺序执行，Mailbox保留同源最新待执行请求，Continuous自动拼批
     enum class Policy {
@@ -123,7 +125,7 @@ public:
     };
 
     // 请求被Mailbox策略的同源新请求或abort作废时，其future抛出此异常
-    class RequestSuperseded : public std::runtime_error {
+    class TIMESTRAL_API RequestSuperseded : public std::runtime_error {
     public:
         RequestSuperseded();
     };

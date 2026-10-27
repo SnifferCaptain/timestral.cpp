@@ -108,9 +108,29 @@ target_compile_features(timestral PUBLIC cxx_std_17)
 target_link_libraries(timestral PUBLIC Threads::Threads)
 set_target_properties(timestral PROPERTIES CXX_EXTENSIONS OFF)
 
+# 生成DLL导出宏头，公开头timestral/timestral.hpp依赖它
+get_target_property(TIMESTRAL_LIBRARY_TYPE timestral TYPE)
+if(TIMESTRAL_LIBRARY_TYPE STREQUAL "STATIC_LIBRARY")
+    set(TIMESTRAL_LIB_KIND "static")
+else()
+    set(TIMESTRAL_LIB_KIND "shared")
+endif()
+configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/timestralExport.hpp.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/timestral/timestralExport.hpp"
+    @ONLY
+)
+target_sources(timestral PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/timestral/timestralExport.hpp")
+
+# Windows下DLL默认不导出任何符号；除显式TIMESTRAL_API外导出全部符号，保证内部链接完整
+if(WIN32 AND NOT TIMESTRAL_LIBRARY_TYPE STREQUAL "STATIC_LIBRARY")
+    set_target_properties(timestral PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
+endif()
+
 target_include_directories(timestral
     PUBLIC
         "${CMAKE_CURRENT_SOURCE_DIR}"
+        "${CMAKE_CURRENT_BINARY_DIR}"
 )
 
 if(MSVC)
@@ -526,6 +546,19 @@ endif()
 if(TIMESTRAL_BUILD_VULKAN_KERNELS OR TIMESTRAL_USE_VULKAN)
     add_subdirectory(timestral/vulkan)
 endif()
+
+# 安装规则：DLL/导入库、公开头、文档与许可；Vulkan shader由timestral/vulkan/CMakeLists.txt另行安装
+include(GNUInstallDirs)
+install(TARGETS timestral
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)
+install(FILES timestral/timestral.hpp DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/timestral)
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/timestral/timestralExport.hpp"
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/timestral)
+install(FILES LICENSE README.md DESTINATION ${CMAKE_INSTALL_DOCDIR})
+
 
 if(TIMESTRAL_USE_VULKAN)
     target_sources(timestral PRIVATE
