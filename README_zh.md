@@ -1,6 +1,6 @@
 # Timestral C++
 
-简体中文 · [English](<README.md>)
+简体中文 · [English](<README.md>) · [![linux](<https://github.com/SnifferCaptain/timestral.cpp/actions/workflows/linux.yml/badge.svg?branch=main>)](<https://github.com/SnifferCaptain/timestral.cpp/actions/workflows/linux.yml>)
 
 [Timestral](<https://github.com/mistralai/timestral>)时间序列模型的本地C++推理库：输入带时间戳的数值序列，输出未来各时刻的中位数、分位数和预测区间。
 

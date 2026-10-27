@@ -1,6 +1,6 @@
 # Timestral C++
 
-[中文](<README_zh.md>) · English
+[中文](<README_zh.md>) · English · [![linux](<https://github.com/SnifferCaptain/timestral.cpp/actions/workflows/linux.yml/badge.svg?branch=main>)](<https://github.com/SnifferCaptain/timestral.cpp/actions/workflows/linux.yml>)
 
 A local C++ inference library for the [Timestral](<https://github.com/mistralai/timestral>) time-series model: give it timestamped numeric series and it returns the median, quantiles and prediction intervals for future steps.
 
