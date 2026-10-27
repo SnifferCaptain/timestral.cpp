@@ -108,3 +108,93 @@ jobs:
             echo "Incomplete SPIR-V directory was incorrectly accepted" >&2
             exit 1
           fi
+
+  windows:
+    name: Windows MSVC ${{ matrix.config }}
+    runs-on: windows-2022
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        config: [std, blas, eigen, ytensor]
+    steps:
+      - uses: actions/checkout@v4
+      - name: 配置
+        shell: bash
+        run: |
+          case "${{ matrix.config }}" in
+            std) options="" ;;
+            blas) options="-DTIMESTRAL_USE_BLAS=ON" ;;
+            eigen) options="-DTIMESTRAL_USE_EIGEN=ON" ;;
+            ytensor) options="-DTIMESTRAL_USE_YTENSOR=ON" ;;
+          esac
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release $options
+      - name: 构建库
+        run: cmake --build build --config Release --parallel 2
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-msvc-${{ matrix.config }}
+          path: |
+            build/CMakeFiles/CMakeOutput.log
+          if-no-files-found: ignore
+
+  macos:
+    name: macOS AppleClang ${{ matrix.config }}
+    runs-on: macos-14
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        config: [std, eigen]
+    steps:
+      - uses: actions/checkout@v4
+      - name: 配置
+        shell: bash
+        run: |
+          case "${{ matrix.config }}" in
+            std) options="" ;;
+            eigen) options="-DTIMESTRAL_USE_EIGEN=ON" ;;
+          esac
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release $options
+      - name: 构建库
+        run: cmake --build build --parallel 2
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: macos-appleclang-${{ matrix.config }}
+          path: |
+            build/CMakeFiles/CMakeOutput.log
+          if-no-files-found: ignore
+
+  install:
+    name: install规则与下游消费
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build
+      - name: 安装到前缀
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX=$PWD/prefix
+          cmake --build build --parallel 2
+          cmake --install build
+          test -f prefix/include/timestral/timestral.hpp
+          test -f prefix/include/timestral/timestralExport.hpp
+          test -f prefix/lib/libtimestral.a
+      - name: 下游编译链接已安装头与库
+        run: |
+          cat > downstream.cpp <<'CPP'
+          #include <timestral/timestral.hpp>
+          int main() {
+              timestral::Timestral::Request request;
+              request.sampleInterval = 0.01;
+              request.horizonSeconds = 0.32;
+              return request.variables.empty() ? 0 : 1;
+          }
+          CPP
+          c++ -std=c++17 -Iprefix/include downstream.cpp prefix/lib/libtimestral.a -o downstream -pthread
+          ./downstream
