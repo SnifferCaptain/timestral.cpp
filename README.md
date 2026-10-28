@@ -107,7 +107,7 @@ Single variable, in milliseconds.
 
 A two-channel signal advances to 128k, forecasting 512 points each time. The frozen FIFO is an explicit approximation and is off by default.
 
-![Sliding window RMSE curves and update time once the window is full](<assets/swa-rmse.png>)
+![Sliding window RMSE curves and per-frame latency, native full recompute vs cached paged KV](<assets/swa-rmse.png>)
 
 ### Short forecasts and decode block size
 
