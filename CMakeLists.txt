@@ -122,6 +122,11 @@ configure_file(
 )
 target_sources(timestral PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/timestral/timestralExport.hpp")
 
+# 静态库：库与下游统一TIMESTRAL_STATIC，TIMESTRAL_API为空，避免dllexport/dllimport符号不一致
+if(TIMESTRAL_LIBRARY_TYPE STREQUAL "STATIC_LIBRARY")
+    target_compile_definitions(timestral PUBLIC TIMESTRAL_STATIC)
+endif()
+
 # Windows下DLL默认不导出任何符号；除显式TIMESTRAL_API外导出全部符号，保证内部链接完整
 if(WIN32 AND NOT TIMESTRAL_LIBRARY_TYPE STREQUAL "STATIC_LIBRARY")
     set_target_properties(timestral PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
