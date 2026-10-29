@@ -186,12 +186,12 @@ Configuration d'instance, lue à la construction, immuable après construction. 
 | Variable membre | Type | Valeur par défaut | Description |
 | --- | --- | --- | --- |
 | maxContext | std::size_t | 0 | Plafond du nombre d'échantillons du contexte, 0 prend le contextLength du modèle, la partie excédentaire jette les relevés les plus anciens |
-| patchBatch | std::size_t | 16 | Nombre de patches par bouée de l'AR par blocs, par exemple 1/2/4/8/16/32, borné à blockSize à la construction |
-| maxBatch | std::size_t | 4 | Nombre de fentes de requêtes par bouée |
+| patchBatch | std::size_t | 16 | Nombre de patches par tour de l'AR par blocs, par exemple 1/2/4/8/16/32, borné à blockSize à la construction |
+| maxBatch | std::size_t | 4 | Nombre de fentes de requêtes par tour |
 | maxVariables | std::size_t | 8 | Plafond du total de cibles et de covariables par requête |
 | cachePages | std::size_t | 2048 | Plafond du nombre de pages KV par nombre de canaux, une page stocke un patch, allocation à la demande, 0 désactive le cache |
 | maxSessions | std::size_t | 16 | Nombre de sessions conservant l'historique, au-delà on évince la moins récemment utilisée, 0 ne crée pas de sessions |
-| fullPrefillThreshold | std::size_t | 512 | Si l'historique conservé de la session cette bouée ne dépasse pas ce nombre de points, on utilise tous les nouveaux relevés, autorisant un nouveau prefill ; 0 fixe toujours la frontière |
+| fullPrefillThreshold | std::size_t | 512 | Si l'historique conservé de la session cette tour ne dépasse pas ce nombre de points, on utilise tous les nouveaux relevés, autorisant un nouveau prefill ; 0 fixe toujours la frontière |
 | threads | std::size_t | 1 | Nombre de threads BLAS/Eigen/ytensor, par défaut 1 sériel, 0 automatique (au plus 4), N pour un nombre exact de threads |
 | continuousRope | bool | false | Position de temps de patch continue expérimentale |
 | ropeReferenceInterval | double | 0.0 | Intervalle d'échantillonnage de référence, 0 adopte l'intervalle de la requête |
@@ -217,11 +217,11 @@ Une requête de prédiction. Quand les fins ne sont pas alignées, complétion s
 | symmetricAveraging | bool | true | Ajoute un aller-retours miroir du contexte négatif et moyenne |
 | clipNonnegative | bool | true | Tronque au non négatif les trajectoires dont les observations sont toutes non négatives |
 
-La session de canaux synchronisés utilise par défaut tous les nouveaux relevés en phase d'historique court : si l'historique conservé cette bouée après rognage par maxContext ne dépasse pas fullPrefillThreshold, un nouveau prefill est autorisé du fait de la réalignment des patches, bufferedSamples vaut 0. Le seuil par défaut est 512 points d'échantillonnage, identique à la longueur d'une bouée de décodage par défaut de 5M, mais ne change pas avec patchBatch ou l'horizon de cette bouée. Au-delà du seuil, on conserve la frontière de patch et le remplissage à gauche du dernier accueil complet des relevés, et en reprenant on n'envoie au modèle que les patches complétés ; les relevés de queue non complétés sont conservés dans la session et ne participent pas à la prédiction de cette bouée. Le prochain ajout d'abord se concatène avec la queue, et les pages anciennes complètes ne sont pas réencodées à cause du changement du reste du nombre de points ajoutés. Cette règle d'entrée ne dépend pas de l'activation du cache KV ; un seuil à 0 fixe toujours la frontière. La première requête utilise toujours tous les relevés, conservant la sémantique de remplissage à gauche de l'amont.
+La session de canaux synchronisés utilise par défaut tous les nouveaux relevés en phase d'historique court : si l'historique conservé cette tour après rognage par maxContext ne dépasse pas fullPrefillThreshold, un nouveau prefill est autorisé du fait de la réalignment des patches, bufferedSamples vaut 0. Le seuil par défaut est 512 points d'échantillonnage, identique à la longueur d'une tour de décodage par défaut de 5M, mais ne change pas avec patchBatch ou l'horizon de cette tour. Au-delà du seuil, on conserve la frontière de patch et le remplissage à gauche du dernier accueil complet des relevés, et en reprenant on n'envoie au modèle que les patches complétés ; les relevés de queue non complétés sont conservés dans la session et ne participent pas à la prédiction de cette tour. Le prochain ajout d'abord se concatène avec la queue, et les pages anciennes complètes ne sont pas réencodées à cause du changement du reste du nombre de points ajoutés. Cette règle d'entrée ne dépend pas de l'activation du cache KV ; un seuil à 0 fixe toujours la frontière. La première requête utilise toujours tous les relevés, conservant la sémantique de remplissage à gauche de l'amont.
 
 Pendant la mise en attente, la longueur interne de prédiction est le nombre de pas requis plus le nombre de points en attente, puis on saute l'étendue correspondante au début. Ainsi Result::origin reste toujours le temps du dernier relevé, et le nombre de pas retourné et l'horizon sont inchangés, mais la prédiction n'a pas utilisé les relevés en attente et ne peut pas être considérée comme équivalente à une requête sans état sur toutes les observations les plus récentes. Result::bufferedSamples donne le nombre de points mis en attente par canal, dans la plage de 0 à patchSize moins 1. Par exemple avec la configuration par défaut de 5M, quand l'historique atteint 512 points et qu'on ajoute 31, on réutilise 16 pages et met 31 en attente ; ce n'est qu'à l'ajout suivant de 1 point qu'une nouvelle page est créée ; 160 points plus 31 ajoutés restent en phase d'historique court, 191 points participent tous à la prédiction.
 
-Au-delà de maxContext, la fenêtre se déplace par patch entiers ; la normalisation de l'historique et le contexte changent, et il faut reconstruire le KV de la fenêtre ; ici aucune fenêtre glissante approximative à KV gelé n'est activée. La complétion conditionnelle de canaux non synchronisés passe toujours par le chemin intégral par étapes, sans appliquer la règle de mise en attente de queue ; la session conserve l'historique nécessaire aux canaux auxiliaires pour couvrir la position à prédre la plus ancienne, ainsi que le futur connu, sans rognage indépendant par fin de canal. Quand il faut utiliser tous les derniers relevés à chaque fois, on soumet l'historique complet sans session.
+Au-delà de maxContext, la fenêtre se déplace par patch entiers ; la normalisation de l'historique et le contexte changent, et il faut reconstruire le KV de la fenêtre ; ici aucune fenêtre glissante approximative à KV gelé n'est activée. La complétion conditionnelle de canaux non synchronisés passe toujours par le chemin intégral par étapes, sans appliquer la règle de mise en attente de queue ; la session conserve l'historique nécessaire aux canaux auxiliaires pour couvrir la position à prédire la plus ancienne, ainsi que le futur connu, sans rognage indépendant par fin de canal. Quand il faut utiliser tous les derniers relevés à chaque fois, on soumet l'historique complet sans session.
 
 ### Timestral::Result
 
@@ -241,8 +241,8 @@ La sortie d'une prédiction, temps en secondes, les quantiles sont stockés en l
 | totalSeconds | double | Durée totale d'exécution |
 | reusedPages | std::size_t | Nombre de pages de préfixe touchées, hors pages du pass miroir de moyenne symétrique |
 | computedPages | std::size_t | Nombre de pages nouvellement calculées |
-| bufferedSamples | std::size_t | Nombre de relevés de queue mis en attente par canal, n'ayant pas encore participé à la prédiction de cette bouée, inférieur à patchSize |
-| session | std::string | Session conservant l'historique complet de cette bouée, vide si maxSessions vaut 0 |
+| bufferedSamples | std::size_t | Nombre de relevés de queue mis en attente par canal, n'ayant pas encore participé à la prédiction de cette tour, inférieur à patchSize |
+| session | std::string | Session conservant l'historique complet de cette tour, vide si maxSessions vaut 0 |
 
 #### Result::steps()
 

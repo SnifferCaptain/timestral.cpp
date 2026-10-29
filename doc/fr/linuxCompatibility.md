@@ -2,7 +2,7 @@
 
 Les comptes de tests de ce document enregistrent les corrections de compatibilité de l'époque. L'utilisateur a ensuite décidé de supprimer les composants OpenGL/OpenCL ; le code, la construction et les tâches CI associés sont désormais supprimés ; l'état actuel des plateformes suit [la matrice de la notice principale](<../../README_fr.md#plates-formes-et-backends>), et l'arbitrage est dans [Portée du backend GPU](<gpuScope.md>).
 
-Cette bouée corrige point par point selon le rapport d'audit les problèmes de construction confirmables. Le déploiement par défaut reste du C++17, sans ajout de dépendance tierce d'exécution, sans modification de l'algorithme de prédiction, des poids, du pas de décodage par défaut ni du budget d'erreur figé. La machine actuelle est Windows/MSVC, sans distribution Linux, GCC ou Clang disponibles ; on ne peut pas écrire le résultat local du tableau ci-dessous comme un passage mesuré sur Linux.
+Cette tour corrige point par point selon le rapport d'audit les problèmes de construction confirmables. Le déploiement par défaut reste du C++17, sans ajout de dépendance tierce d'exécution, sans modification de l'algorithme de prédiction, des poids, du pas de décodage par défaut ni du budget d'erreur figé. La machine actuelle est Windows/MSVC, sans distribution Linux, GCC ou Clang disponibles ; on ne peut pas écrire le résultat local du tableau ci-dessous comme un passage mesuré sur Linux.
 
 ## Tableau des corrections
 
@@ -41,9 +41,9 @@ Le vrai dispatch Vulkan ici provient du AMD Radeon(TM) Graphics du périphériqu
 
 ### Échec numérique que ytensor conserve encore
 
-L'endroit de l'échec est l'index 13712 de single-frame/cached-full : actual=2.294824, expected=2.294836, limite d'origine environ 0.000011. Ce budget n'a pas été desserré, aucune assertion supprimée ni cas exclu de CTest. Pour distinguer l'isolement de build du problème numérique existant, on a cette bouée seulement dans une copie d'archivage temporaire rétabli l'objet de modèle ytensor d'origine sauvegardé le 25 octobre à la place du nouvel objet de modèle ; la même régression échoue toujours au même index, avec les mêmes actual/expected/limit. La bibliothèque d'origine n'a pas été remplacée, et le backend officiel n'a pas été changé en Naive/reference.
+L'endroit de l'échec est l'index 13712 de single-frame/cached-full : actual=2.294824, expected=2.294836, limite d'origine environ 0.000011. Ce budget n'a pas été desserré, aucune assertion supprimée ni cas exclu de CTest. Pour distinguer l'isolement de build du problème numérique existant, on a cette tour seulement dans une copie d'archivage temporaire rétabli l'objet de modèle ytensor d'origine sauvegardé le 25 octobre à la place du nouvel objet de modèle ; la même régression échoue toujours au même index, avec les mêmes actual/expected/limit. La bibliothèque d'origine n'a pas été remplacée, et le backend officiel n'a pas été changé en Naive/reference.
 
-Par conséquent, cette bouée peut montrer que le blocage de build du rapport a été traité, mais ne peut pas montrer que tous les scénarios numériques réels de ytensor passent. Les portées non passées antérieures d'autres longues prédictions, de formes GPU en plus et de périphérique 1 ne disparaissent pas non plus par cette correction ; voir les notes d'acceptation numériques locales.
+Par conséquent, cette tour peut montrer que le blocage de build du rapport a été traité, mais ne peut pas montrer que tous les scénarios numériques réels de ytensor passent. Les portées non passées antérieures d'autres longues prédictions, de formes GPU en plus et de périphérique 1 ne disparaissent pas non plus par cette correction ; voir les notes d'acceptation numériques locales.
 
 ## Régression à exécuter sur Linux
 
@@ -70,4 +70,4 @@ ctest --test-dir build-vk -R '^(vulkanShaderAbi|vulkanSmoke)$' --output-on-failu
 
 Le smoke et la bibliothèque statique doivent être construits par la même configuration CMake. Certains types de Vulkan-Hpp sont affectés par NDEBUG ; on ne doit pas mélanger les en-têtes/objets Debug et la bibliothèque statique Release ; la correction actuelle ne promet pas cette compatibilité d'ABI inter-configurations, et n'utilise pas de wrapper manuellement non conforme pour vérifier le GPU.
 
-La performance n'a pas été re-mesurée cette bouée. Les figures et CSV existants conservent les enregistrements de programme/environnement au moment de la mesure d'origine ; on ne peut pas réinjecter le SHA du binaire ou la latence après correction de compatibilité dans les résultats anciens.
+La performance n'a pas été re-mesurée cette tour. Les figures et CSV existants conservent les enregistrements de programme/environnement au moment de la mesure d'origine ; on ne peut pas réinjecter le SHA du binaire ou la latence après correction de compatibilité dans les résultats anciens.

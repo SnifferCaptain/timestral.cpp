@@ -27,7 +27,7 @@ Les régressions numériques des autres backends prennent toutes pour référenc
 Le backend Eigen utilise les vecteurs lignes et les vues Map d'Eigen 3.4.0 pour les projections ; l'attention emploie le noyau numérique commun ordonné.
 
 - Les poids sont pré-transposés à la construction ; le vecteur ligne Eigen met à jour terme à terme dans l'ordre K, avec le biais ajouté à la fin. OpenMP parallélise par ligne d'entrée et ne réordonne pas la réduction à l'intérieur du produit scalaire.
-- L'attention lit directement le préfixe partagé et la queue de la bouée courante ; variate resserre la portée par groupe de requête. Le softmax ordonné et PV maintiennent le budget numérique figé.
+- L'attention lit directement le préfixe partagé et la queue de la tour courante ; variate resserre la portée par groupe de requête. Le softmax ordonné et PV maintiennent le budget numérique figé.
 
 RMSNorm, RoPE, softmax, SiLU, SwiGLU et la tête de quantiles appellent directement les noyaux de reference, voir [eigen/model.cpp](<../../timestral/eigen/model.cpp>). Le backend Eigen précède l'extraction de `Transformer` et conserve encore une orchestration de modèle et une implémentation de pagination complètes ; une modification de sémantique commune doit être vérifiée en synchronie.
 
@@ -83,7 +83,7 @@ Quelques lectures :
 - Le forward simple-ligne est d'un facteur environ 3.7 à 6.5 de Eigen et ytensor par rapport à reference sur les trois longueurs ; Eigen est plus rapide à T=32768, ytensor est plus rapide à T=4096.
 - Le protocole stream est l'ajout progressif de données de la même origine ; Eigen a un cache paginé, ytensor recalcule intégralement à chaque fois ; donc bien que le forward unique de ytensor soit plus rapide à T=4096, son stream reste plus lent qu'Eigen. Si le cache paginé est utilisable a plus d'impact sur le scénario en flux que la vitesse d'un GEMM unitaire.
 - Les gains multithread sont limités. Eigen à 4 threads sur stream est le point optimal global mesuré, environ 7.4 fois reference ; 8 et 16 threads se dégradent au contraire à cause du coût de planification OpenMP des petits GEMM. Le YBLAS de ytensor n'a qu'environ 1.4 fois de gain à 4 threads sur contexte 32768 ; court contexte plus threads est une perte nette. D'où le défaut `threads=1`.
-- Chaque groupe de configuration rapporte une bouée de statistiques de protocole (5 échauffements, 25 mesures) ; pas de verrouillage de fréquence ; des variations nettes existent entre les bouées ; les chiffres de la table servent à comparer les ordres de grandeur et ne sont pas une promesse de latence.
+- Chaque groupe de configuration rapporte une tour de statistiques de protocole (5 échauffements, 25 mesures) ; pas de verrouillage de fréquence ; des variations nettes existent entre les tours ; les chiffres de la table servent à comparer les ordres de grandeur et ne sont pas une promesse de latence.
 
 ## Vue d'ensemble du backend BLAS
 

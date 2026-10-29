@@ -209,7 +209,7 @@ Ce ci-dessus est un extrait de [CMakeLists.txt](<../../CMakeLists.txt#L19-L35>) 
 
 1. À la construction de `Timestral`, `loadEngine` lit config.json et model.safetensors, appelle `loadBackendModel` lié pour obtenir un modèle en lecture seule, puis démarre le thread de travail du `Service`.
 2. `submit` accomplit toute la validation dans le thread appelant : au moins 2 patches d'historique, horodatages strictement croissants, déduction de l'intervalle d'échantillonnage et du nombre de pas de prédiction, rognage de l'historique selon `maxContext`, et décision d'utiliser ou non la grille paginée.
-3. Le thread de travail retire une bouée de requêtes selon la stratégie de planification ; celles qui touchent une page de préfixe passent par le chemin paginé, les autres sont recalculées intégralement ou assemblées à froid.
+3. Le thread de travail retire une tour de requêtes selon la stratégie de planification ; celles qui touchent une page de préfixe passent par le chemin paginé, les autres sont recalculées intégralement ou assemblées à froid.
 4. [Engine](<../../timestral/utils/engine.cpp>) remplit à gauche le contexte jusqu'à un multiple entier de patch, puis boucle par blocs de `patchBatch` patches : un aller-retour produit les quantiles, un refine advancing est appliqué, et la médiane de la cible est renvoyée comme contexte du bloc suivant.
 5. Après tous les blocs, on applique successivement la troncature de plage, la moyenne symétrique et la troncature non négative, puis on assemble un `Result`, avec le chronométrage et les statistiques de toucher de page.
 

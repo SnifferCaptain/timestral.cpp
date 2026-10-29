@@ -64,7 +64,7 @@ The [source directory](<../../timestral/vulkan/shaders/>) contains 26 compute ke
 | [gemmTile](<../../timestral/vulkan/shaders/gemmTile.comp>) | 32×32 output tile, 2×2 register blocking, merged W load, per-K precise | 16×16 threads, 4160B shared | 16 bytes |
 | [attentionTile](<../../timestral/vulkan/shaders/attentionTile.comp>) | time-axis 8-query shared K/V, 64-key online softmax | 64×8 threads, 39168B shared, falls back to v1 when the device does not meet it | 36 bytes |
 | [attentionRegister](<../../timestral/vulkan/shaders/attentionRegister.comp>) | headDim64 register PV, diagnosis only | 64 threads | 36 bytes |
-| [gemv](<../../timestral/vulkan/shaders/gemm.comp>) | narrow-M per-K exact projection, weight loads merged by K | 64 threads, 16 columns/group | 16 bytes |
+| [gemv](<../../timestral/vulkan/shaders/gemv.comp>) | narrow-M per-K exact projection, weight loads merged by K | 64 threads, 16 columns/group | 16 bytes |
 | [attentionCausal](<../../timestral/vulkan/shaders/attentionCausal.comp>) | only trims the encoding future key blocks provably fully empty | 64×8, 39168B shared | 36 bytes |
 | [attentionSubgroup](<../../timestral/vulkan/shaders/attentionSubgroup.comp>) | subgroup attention with a query alignment check and the original reduction fallback | 64×8, 39300B shared, Basic/Vote/Arithmetic | 36 bytes |
 | [attentionDecode](<../../timestral/vulkan/shaders/attentionDecode.comp>) | H1 long KV sharded by 128 keys, keeping max/denominator/PV | 64 threads, 17408B shared | 40 bytes |

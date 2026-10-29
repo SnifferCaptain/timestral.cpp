@@ -1,6 +1,6 @@
 # A Design Tutorial for the Dedicated BLAS Backend
 
-This document starts from the compute volume of one forward pass and unfolds, top-down, the whole optimization tree of the Timestral dedicated BLAS backend: first decide which computations are not done at all, then hand the computations that must be done to kernels that fit the caches and the registers. The BLAS backend depends on no external library; it is enabled by the CMake option `TIMESTRAL_USE_BLAS`, is the default on x86 when no other backend is selected, and the default build on other architectures is the pure standard-library reference. The following roofline experiments are records of the AMD 7735H single-threaded, MSVC 19.36; for the current 1/2/4-thread model comparisons see [the benchmark data](<benchmark.md>); cache capacities and peaks are estimates, not hardware-counter measurements; the raw records are in the local acceptance records.
+This document starts from the compute volume of one forward pass and unfolds, top-down, the whole optimization tree of the Timestral dedicated BLAS backend: first decide which computations are not done at all, then hand the computations that must be done to kernels that fit the caches and the registers. The BLAS backend depends on no external library; it is enabled by the CMake option `TIMESTRAL_USE_BLAS`, is the default on x86 when no other backend is selected, and the default build on other architectures is the pure standard-library reference. The following pre-existing roofline experiments are records of the AMD 7735H single-threaded, MSVC 19.36; for the current 1/2/4-thread model comparisons see [the benchmark data](<benchmark.md>); cache capacities and peaks are estimates, not hardware-counter measurements; the raw records are in the local acceptance records.
 
 ## Threads and Output Isolation
 
@@ -189,7 +189,7 @@ AVX2+FMA is the first target, but not all x86 supports it. The SSE4.2 fallback k
 
 The forced-SSE GEMM is about 40–41.7 GF/s, about 30% of the 134.4 nominal denominator; the single-head 1028 causal attention is 7.02 ms versus 2.35 ms for AVX2. This is a working correctness fallback, not a performance path.
 
-This machine has no ARM run or cross-validation environment, so unverified NEON is not implemented. The user explicitly allowed ARM to use Eigen, so the build detects the target architecture: TIMESTRAL_TARGET_PROCESSOR first takes CMAKE_GENERATOR_PLATFORM (a VS -A ARM64 cross generation does not change CMAKE_SYSTEM_PROCESSOR); when the target is ARM, Eigen is selected and a STATUS message explains the actual backend. This only verified the configuration routing; it does not mean the numerics were accepted on ARM hardware.
+On the ARM machine itself there is no run or cross-validation environment, so unverified NEON is not implemented. The user explicitly allowed ARM to use Eigen, so the build detects the target architecture: TIMESTRAL_TARGET_PROCESSOR first takes CMAKE_GENERATOR_PLATFORM (a VS -A ARM64 cross generation does not change CMAKE_SYSTEM_PROCESSOR); when the target is ARM, Eigen is selected and a STATUS message explains the actual backend. This only verified the configuration routing; it does not mean the numerics were accepted on ARM hardware.
 
 ## Quantized Decode: Compressing Only the Weights, Prefill Stays FP32
 
