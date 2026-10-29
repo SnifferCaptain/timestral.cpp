@@ -80,6 +80,21 @@ public:
         double interval = 0.0
     ) const;
 
+    // @brief 分页增量预测，镜像pass读取取负前缀的页表
+    // @param mirrorTable 按取负前缀编码的整patch页表，空表时镜像pass全量重算，其余参数同上
+    // @note 只在request.symmetricAveraging为true时读取mirrorTable，截断时同样由引擎释放
+    Tensor predictStreamed(
+        const Tensor& context,
+        std::size_t predictionLength,
+        const Timestral::Request& request,
+        PagePool& pool,
+        std::vector<std::size_t>& table,
+        std::vector<std::size_t>& mirrorTable,
+        TimingStats& timing,
+        const std::vector<double>& times = {},
+        double interval = 0.0
+    ) const;
+
     // deprecated：跨未来块共享冻结历史并独立平移RoPE，跳过块间反馈
     // 仅保留历史实验与回归，不等于正常32patch单块前向，正式调用使用块AR
     // 历史按patch对齐，预测长度须为整帧，历史加预测不超过maxContext，前缀页只读
@@ -96,6 +111,10 @@ public:
     // @brief 是否支持分页增量接口
     // @return 后端支持时返回true
     bool supportsIncremental() const;
+
+    // @brief 生效的块AR每轮patch数
+    // @return 构造时钳制到blockSize后的patchBatch
+    std::size_t patchBatch() const;
 
     // @brief 是否使用实验性连续patch位置
     bool continuousRope() const;
@@ -157,6 +176,20 @@ public:
         double interval = 0.0
     ) const;
 
+    // @brief 共享解码同时复用取负前缀，镜像页的引用也归调用方所有
+    // @param mirrorTable 取负后对应同一共享前缀的页表，空表时镜像pass全量重算
+    Tensor decodeShared(
+        const Tensor& context,
+        std::size_t predictionLength,
+        const Timestral::Request& request,
+        PagePool& pool,
+        const std::vector<std::size_t>& table,
+        const std::vector<std::size_t>& mirrorTable,
+        TimingStats& timing,
+        const std::vector<double>& times = {},
+        double interval = 0.0
+    ) const;
+
 private:
     // @brief 全量与增量共用的分块自回归流程
     // @param input 形状(B,V,T)或(1,T)
@@ -166,6 +199,7 @@ private:
     // @param knownCovariates 形状(B,C,T+predictionLength)的已知未来行，零元素表示不提供
     // @param pool 页池，全量时为空池
     // @param table 页表，全量时为空表
+    // @param mirrorTable 镜像pass的页表，空表时镜像pass全量重算
     // @param timing 输出，累加耗时
     // @param incremental 为true时按页解码，否则整块前向
     // @param sharedPages 为true时页按单行几何解释，table的所有权仍归调用方
@@ -180,6 +214,7 @@ private:
         const Tensor& knownCovariates,
         PagePool& pool,
         std::vector<std::size_t>& table,
+        std::vector<std::size_t>& mirrorTable,
         TimingStats& timing,
         bool incremental,
         bool sharedPages,
@@ -189,7 +224,7 @@ private:
 
     std::shared_ptr<const Model> model;
     std::size_t contextLimit = 0; // 构造时0已替换为模型contextLength
-    std::size_t patchBatch = 16; // 构造时已钳制到blockSize
+    std::size_t patchBlock = 16; // 构造时已钳制到blockSize
     bool continuousTime = false;
     double referenceInterval = 0.0;
 };

@@ -1,12 +1,12 @@
 # 专用BLAS后端设计教程
 
-本文从一次forward的计算量讲起，自顶向下展开Timestral专用BLAS后端的整棵优化树：先决定哪些计算根本不做，再把必须做的计算交给贴合缓存与寄存器的内核。BLAS后端不依赖任何外部库，由CMake选项`TIMESTRAL_USE_BLAS`启用，默认构建仍是纯标准库的reference。以下既有roofline实验为AMD 7735H单线程、MSVC 19.36的记录，当前1/2/4线程模型对照见[基准数据](<benchmark.md>)，缓存容量与峰值是推算而非硬件计数器测量，原始记录见本地验收记录。
+本文从一次forward的计算量讲起，自顶向下展开Timestral专用BLAS后端的整棵优化树：先决定哪些计算根本不做，再把必须做的计算交给贴合缓存与寄存器的内核。BLAS后端不依赖任何外部库，由CMake选项`TIMESTRAL_USE_BLAS`启用，x86上未选其它后端时默认采用，其它架构的默认构建是纯标准库的reference。以下既有roofline实验为AMD 7735H单线程、MSVC 19.36的记录，当前1/2/4线程模型对照见[基准数据](<benchmark.md>)，缓存容量与峰值是推算而非硬件计数器测量，原始记录见本地验收记录。
 
 ## 线程与输出隔离
 
 Settings.threads现在控制模型自己的固定线程池，1为串行，0自动选择且最多4，N指定计算线程数，调用线程也参与。投影按行或16列面板、注意力按独立头和通道组、激活按独立输出分派，后台线程跨算子复用。每个任务持有自己的打包工作区，K维累加不跨线程拆分，异常在全部任务结束后传回调用者。同池嵌套在当前线程串行执行，多个外部调用者通过提交锁隔离任务。
 
-[并行测试](<../tests/blasParallelTest.cpp>)检查真实双线程并发、多个调用者、嵌套、异常恢复和2/4线程逐位一致性，不以返回的线程数代替实际执行验证。
+[并行测试](<../../tests/blasParallelTest.cpp>)检查真实双线程并发、多个调用者、嵌套、异常恢复和2/4线程逐位一致性，不以返回的线程数代替实际执行验证。
 
 ## 当前模型路径
 
@@ -28,7 +28,7 @@ Zen3每个核心每周期可发射2条256位FMA，即2×8×2=32个FP32 FLOPs。�
 
 ## 优化树总览
 
-![BLAS优化树](<../assets/blas-tree.svg>)
+![BLAS优化树](<../../assets/blas-tree.svg>)
 
 优化按层次自顶向下展开。请求层与模型执行层决定哪些计算可以省掉或合并，算子层决定计算以什么结构组织，内核层与指令集层决定每条指令的效率。下层优化再彻底，也补不回上层多算的部分；反过来，上层省下的计算如果交给低效的内核，收益也会被吞掉。下面按这棵树逐层展开。
 
@@ -64,7 +64,7 @@ Zen3每个核心每周期可发射2条256位FMA，即2×8×2=32个FP32 FLOPs。�
 
 ### 寄存器分块：6×16微内核
 
-![6×16微内核](<../assets/blas-microkernel.svg>)
+![6×16微内核](<../../assets/blas-microkernel.svg>)
 
 微内核一次计算C的6行×16列。每个k步读B的一行16个float（2个YMM），对A的6个值逐个broadcast，做12次FMA。AVX2共16个YMM寄存器：12个C累加器、2个B向量、1个A广播，剩1个给编译器调度。
 
@@ -74,7 +74,7 @@ K循环前对C的6行做预取，目的是提高收尾写回时命中L1的机会
 
 ### 打包：让微内核只做顺序读
 
-![打包布局](<../assets/blas-packing.svg>)
+![打包布局](<../../assets/blas-packing.svg>)
 
 图中先用通用B(K,N)行主序示意，微基准也使用这种输入。真实模型文件存的是W(N,K)行主序，加载时通过`rowStride=1`、`columnStride=K`把B=Wᵀ视图交给同一打包器，并没有先转置出完整B。微内核希望每个k步读到的16个B值和6个A值在内存中相邻。打包就是把原矩阵重排成这种顺序：B按16列切成面板，每个面板K行×16列连续存放；A每6行一个面板，按[k][6]交错。尾部不足16列或6行的部分补零，微内核不需要处理边界，写回时只写有效区域。
 
@@ -90,7 +90,7 @@ K循环前对C的6行做预取，目的是提高收尾写回时命中L1的机会
 
 ### 缓存分块：五层循环
 
-![五层循环](<../assets/blas-loops.svg>)
+![五层循环](<../../assets/blas-loops.svg>)
 
 寄存器分块解决了加载与FMA的比例，缓存分块要保证这些加载命中近处的缓存。沿用BLIS的五层循环：最外层jc按NC切N，pc按KC切K，ic按MC切M，jr与ir按16列和6行遍历微面板。
 
@@ -116,7 +116,7 @@ BLAS后端不放宽任何既有阈值：隐藏态max(1e-5, 1e-4×RMS)且相对L2
 
 ### 在线softmax
 
-![在线softmax](<../assets/blas-online-softmax.svg>)
+![在线softmax](<../../assets/blas-online-softmax.svg>)
 
 在线softmax（FlashAttention系列使用的分块思想）把键分成块，每行只维护当前最大值m、分母l和未归一化的输出O。读入新键块的分数S后，令m'=max(m, max S)、α=exp(m−m')，然后l'=α·l+Σexp(S−m')、O'=α·O+exp(S−m')·V，最后输出O/l。整行都被屏蔽时l=0，输出置0，不会出现inf−inf。
 
@@ -124,7 +124,7 @@ BLAS后端不放宽任何既有阈值：隐藏态max(1e-5, 1e-4×RMS)且相对L2
 
 ### 掩码块分类
 
-![掩码块分类](<../assets/blas-mask.svg>)
+![掩码块分类](<../../assets/blas-mask.svg>)
 
 每个6×64块先分成三类：Empty块里没有任何允许的(q,k)对，QK与PV都跳过；Full块全部允许，传入共享的全1字节掩码，不再调用逐元素谓词或展开掩码；Partial块才逐元素屏蔽。加速来自结构化地少算，不依赖分支预测。
 
@@ -142,7 +142,7 @@ variate轴的序列长度只有变量数，键数不超过16时，打包与分�
 
 ### 2^x分解
 
-![exp分解](<../assets/blas-exp.svg>)
+![exp分解](<../../assets/blas-exp.svg>)
 
 换底恒等式是`exp(x)=exp2(x·log2(e))`，对应`log(x)=log2(x)/log2(e)`。但直接换成标准库`std::exp2`调用不保证更快，AVX2也没有通用exp指令。这里自己完成向量范围约简和位构造，避免逐lane调用标量库函数；`ldexp`表达的幂次缩放思想被展开成整数加法、移位和乘法。
 
@@ -155,7 +155,7 @@ variate轴的序列长度只有变量数，键数不超过16时，打包与分�
 - n的范围是[−150, 128]，拆成两半各自拼成2的幂再连乘，次正规数和接近FLT_MAX的输出都能正确表示
 - 输入先截断到[−103.97, 88.72]。这两个端点本身经运算就会得到0和+inf，不需要再用blend修正；max与min在遇到NaN时返回第二个操作数，把x放在第二位，NaN就会顺着算术自然传播
 
-系数来自Cephes Release 2.2的exp2f.c，版权与发布说明见[第三方来源](<../THIRD_PARTY.md>)。原实现是Cody-Waite约简加Cephes的e^r多项式，并用三次blend处理两端和NaN。在默认最近偶数舍入、未开启FTZ/DAZ的环境下，遍历[−110,110]内全部有限float，再加入±inf与部分NaN载荷（共2243428616个测试项，含对齐补零），对照double精度exp。这里的平均ULP对每个有限参考结果都累计真实误差，正确舍入也不记作零；溢出与非有限结果另外核对类别。三轮4096元素的纯函数吞吐实验得到下表：
+系数来自Cephes Release 2.2的exp2f.c，版权与发布说明见[第三方来源](<../../THIRD_PARTY.md>)。原实现是Cody-Waite约简加Cephes的e^r多项式，并用三次blend处理两端和NaN。在默认最近偶数舍入、未开启FTZ/DAZ的环境下，遍历[−110,110]内全部有限float，再加入±inf与部分NaN载荷（共2243428616个测试项，含对齐补零），对照double精度exp。这里的平均ULP对每个有限参考结果都累计真实误差，正确舍入也不记作零；溢出与非有限结果另外核对类别。三轮4096元素的纯函数吞吐实验得到下表：
 
 ~~~text
 变体                         最大误差    平均误差     每元素耗时
@@ -217,7 +217,7 @@ decode的瓶颈和prefill不同。prefill一次算整段历史，是计算密集
 
 ## 验收结果与测量波动
 
-![后端对比与注意力优化过程](<../assets/blas-results.svg>)
+![后端对比与注意力优化过程](<../../assets/blas-results.svg>)
 
 图中沿用首轮同机并排验收的数据，不把本轮exp实验与旧版本的整模型差值混成收益。全部MFU在这里统一换算为4.2GHz×32=134.4 GFLOP/s，原始日志中的旧分母保留作历史证据。
 
@@ -239,14 +239,14 @@ exp微基准的耗时取每轮15次中的最小值，输入4096个、范围[−2
 
 | 读哪一层 | 代码入口 |
 | --- | --- |
-| 模型融合与预打包 | [BLAS模型](<../timestral/blas/model.cpp>)与[公共Transformer](<../timestral/utils/transformer.cpp>) |
-| 五层循环、视图与面板 | [gemm.cpp](<../timestral/blas/gemm.cpp>)与[gemm.hpp](<../timestral/blas/gemm.hpp>) |
-| 6×16与窄核 | [完整微内核](<../timestral/blas/microkernelAvx2.cpp>)与[窄核](<../timestral/blas/microkernelNarrowAvx2.cpp>) |
-| SSE4.2微内核 | [microkernelSse42.cpp](<../timestral/blas/microkernelSse42.cpp>) |
-| 量化decode权重与投影 | [decode.cpp](<../timestral/blas/decode.cpp>)与[decodeAvx2.cpp](<../timestral/blas/decodeAvx2.cpp>) |
-| 在线softmax与块分类 | [attention.cpp](<../timestral/blas/attention.cpp>) |
-| 向量exp、sigmoid与SwiGLU | [elementwiseAvx2.cpp](<../timestral/blas/elementwiseAvx2.cpp>) |
-| CPU/OS检测 | [cpuX86.cpp](<../timestral/blas/cpuX86.cpp>) |
+| 模型融合与预打包 | [BLAS模型](<../../timestral/blas/model.cpp>)与[公共Transformer](<../../timestral/utils/transformer.cpp>) |
+| 五层循环、视图与面板 | [gemm.cpp](<../../timestral/blas/gemm.cpp>)与[gemm.hpp](<../../timestral/blas/gemm.hpp>) |
+| 6×16与窄核 | [完整微内核](<../../timestral/blas/microkernelAvx2.cpp>)与[窄核](<../../timestral/blas/microkernelNarrowAvx2.cpp>) |
+| SSE4.2微内核 | [microkernelSse42.cpp](<../../timestral/blas/microkernelSse42.cpp>) |
+| 量化decode权重与投影 | [decode.cpp](<../../timestral/blas/decode.cpp>)与[decodeAvx2.cpp](<../../timestral/blas/decodeAvx2.cpp>) |
+| 在线softmax与块分类 | [attention.cpp](<../../timestral/blas/attention.cpp>) |
+| 向量exp、sigmoid与SwiGLU | [elementwiseAvx2.cpp](<../../timestral/blas/elementwiseAvx2.cpp>) |
+| CPU/OS检测 | [cpuX86.cpp](<../../timestral/blas/cpuX86.cpp>) |
 | 复现吞吐与公式 | 本地工具blasBench与blasProfile（不入库） |
 
 BLIS参考固定提交[e8566eb3](<https://github.com/flame/blis/tree/e8566eb3e773fb54d11b33e371d13f22d2941e50>)，具体读过的设计与源码见本地研究记录。在线softmax可对照[FlashAttention](<https://arxiv.org/abs/2205.14135>)与[FlashAttention-2](<https://arxiv.org/abs/2307.08691>)，本实现借用分块与在线归约思想，不声称复刻GPU的warp调度、异步流水线或相同的性能特征。教程的“基本问题→数学结构→工程改进→取舍”写法参考[tdt-nav-kit固定版本](<https://github.com/T-DT-Algorithm-2026/tdt-nav-kit/tree/814d5ce0237acc7faa8c070e5c5e61e2ddc81996>)，图由本项目重新绘制。

@@ -155,6 +155,8 @@ void verifyPoolGeometry(const PagePool& pool, const ModelConfig& config, std::si
 // @param groupIds 每行一个组号
 // @param first 组号到首个观测patch的映射
 // @param coordinates 可选实数patch坐标，空则按离散位置校验
+// @param positionOffset 滚动窗口保留的绝对位置偏移
+// @param skipPositions 实验用：最前N个槽跳过rotary位置校验（sink页表首位不对齐网格），掩码位仍校验
 // @throw std::invalid_argument rotary位置或掩码位不一致时抛出
 void verifyTableGrid(
     const PagePool& pool,
@@ -164,7 +166,8 @@ void verifyTableGrid(
     const std::vector<std::size_t>& groupIds,
     const std::map<std::size_t, std::size_t>& first,
     const std::vector<double>& coordinates = {},
-    double positionOffset = 0.0
+    double positionOffset = 0.0,
+    std::size_t skipPositions = 0
 );
 
 // @brief 校验整组页表与批内各请求的对应通道网格一致

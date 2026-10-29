@@ -4,15 +4,15 @@ CPU实现包括默认reference，以及可选的Eigen、ytensor和自写BLAS。�
 
 ## 为什么需要多个后端
 
-最直接的移植方式是把上游PyTorch的每个算子写成三重循环。这正是reference后端：只依赖C++17标准库，累加顺序简单可追溯，适合作为正确性基线。当前模型级耗时见[基准对照](<../README_zh.md#性能>)。
+最直接的移植方式是把上游PyTorch的每个算子写成三重循环。这正是reference后端：只依赖C++17标准库，累加顺序简单可追溯，适合作为正确性基线。当前模型级耗时见[基准对照](<../../README_zh.md#性能>)。
 
 加速的朴素做法是引入矩阵库，把计算全部交给它。这样会遇到两个约束：默认部署路径必须保持零第三方依赖；换库后浮点累加顺序改变，结果不再与reference逐位相同，需要一套事先确定、不能事后放宽的容差。本仓库的处理方式是：后端由CMake在配置期单选（机制见[模型架构](<architecture.md>)），可选后端只替换计算密集的部分，模型语义保持一致，reference与BLAS共用执行器，Eigen与ytensor仍保留各自编排；精度用固定的上游oracle和尺度感知容差判定。
 
-![后端类层次与能力对照](<../assets/backend-layers.svg>)
+![后端类层次与能力对照](<../../assets/backend-layers.svg>)
 
 ## reference
 
-reference是`Transformer`的子类，只实现模型编排需要的窄数值钩子：投影、RMSNorm、QKV重排与RoPE、单头注意力，见[reference/model.cpp](<../timestral/reference/model.cpp>)。嵌入、掩码、分页、分位数头等全部逻辑在`utils`的[Transformer](<../timestral/utils/transformer.cpp>)中，因此reference本身不到一百行。底层算子在[kernels.cpp](<../timestral/reference/kernels.cpp>)：线性层逐输出做串行点积，再加偏置；注意力先算出整行分数，被掩码的位置填负无穷，softmax后再与V相乘。
+reference是`Transformer`的子类，只实现模型编排需要的窄数值钩子：投影、RMSNorm、QKV重排与RoPE、单头注意力，见[reference/model.cpp](<../../timestral/reference/model.cpp>)。嵌入、掩码、分页、分位数头等全部逻辑在`utils`的[Transformer](<../../timestral/utils/transformer.cpp>)中，因此reference本身不到一百行。底层算子在[kernels.cpp](<../../timestral/reference/kernels.cpp>)：线性层逐输出做串行点积，再加偏置；注意力先算出整行分数，被掩码的位置填负无穷，softmax后再与V相乘。
 
 reference有三个刻意的选择：
 
@@ -29,16 +29,16 @@ Eigen后端使用Eigen 3.4.0的行向量与Map视图完成投影，注意力采�
 - 权重在构造时预转置，Eigen行向量按K顺序逐项更新，最后加偏置。OpenMP按输入行并行，不在点积内部重排归约。
 - 注意力直接读取共享前缀和本轮尾部，variate按请求组收紧范围。有序softmax与PV保持冻结数值预算。
 
-RMSNorm、RoPE、softmax、SiLU、SwiGLU和分位数头直接调用reference的内核，见[eigen/model.cpp](<../timestral/eigen/model.cpp>)。Eigen后端早于`Transformer`抽取，仍保留一份完整的模型编排和分页实现，修改公共语义时需要同步核对。
+RMSNorm、RoPE、softmax、SiLU、SwiGLU和分位数头直接调用reference的内核，见[eigen/model.cpp](<../../timestral/eigen/model.cpp>)。Eigen后端早于`Transformer`抽取，仍保留一份完整的模型编排和分页实现，修改公共语义时需要同步核对。
 
 线程数由`Settings::threads`控制：1为串行（默认），0为自动值且上限4，N为精确线程数。Eigen的线程数是进程级全局状态，必须在构造模型前设置，同一进程里多个模型共享最后一次设置。自动值不取满核是测出来的：5M的GEMM很小，记录中回归套件16线程约28秒，4线程约2.9秒。
 
 ## ytensor
 
-ytensor后端使用用户指定来源的single-header 0.14，仓库内没有它的许可文件，事实记录见[3rd说明](<../3rd/README.md>)。投影走ytensor的strided matmul，以非拥有视图包装本仓库存储。当前注意力使用公共有序内核，直接读共享前缀和独立尾部，逐元素算子也沿用reference内核。
+ytensor后端使用用户指定来源的single-header 0.14，仓库内没有它的许可文件，事实记录见[3rd说明](<../../3rd/README.md>)。投影走ytensor的strided matmul，以非拥有视图包装本仓库存储。当前注意力使用公共有序内核，直接读共享前缀和独立尾部，逐元素算子也沿用reference内核。
 
 - YBLAS负责投影。原FLASH_AVX2与MATH注意力实现不再作为当前长查询的模型默认路径，不能把旧FA2配置记录当成此次配方。
-- 只有[ytensor/model.cpp](<../timestral/ytensor/model.cpp>)进入独立C++20 OBJECT目标并开启AVX2/FMA（MSVC为`/arch:AVX2`，GCC/Clang为`-mavx2 -mfma`）；工厂与核心保持普通C++17，禁止IPO/unity跨过指令集边界。基线工厂在调用该对象的任何函数前检查CPU与OS的XMM/YMM支持，旧CPU明确拒绝，非x86配置期拒绝。实现、验证与残留数值失败见[兼容性记录](<linuxCompatibility.md>)。MSVC在`/arch:AVX2`下不定义`__FMA__`，也不支持单头里的GNU `__attribute__`语法，该文件在包含ytensor前成对补齐这两处、包含后撤销，记录中说明这些属性只是内联提示。
+- 只有[ytensor/model.cpp](<../../timestral/ytensor/model.cpp>)进入独立C++20 OBJECT目标并开启AVX2/FMA（MSVC为`/arch:AVX2`，GCC/Clang为`-mavx2 -mfma`）；工厂与核心保持普通C++17，禁止IPO/unity跨过指令集边界。基线工厂在调用该对象的任何函数前检查CPU与OS的XMM/YMM支持，旧CPU明确拒绝，非x86配置期拒绝。实现、验证与残留数值失败见[兼容性记录](<linuxCompatibility.md>)。MSVC在`/arch:AVX2`下不定义`__FMA__`，也不支持单头里的GNU `__attribute__`语法，该文件在包含ytensor前成对补齐这两处、包含后撤销，记录中说明这些属性只是内联提示。
 - 支持分页增量，`supportsIncremental()`返回true。页内保存各time层K/V和因果归一化状态，追加与共享解码接受统一页表契约。
 
 ## 精度验收口径

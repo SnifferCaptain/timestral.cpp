@@ -1,6 +1,6 @@
 # Timestral C++
 
-简体中文 · [English](<README.md>) · [![linux](<https://github.com/SnifferCaptain/timestral.cpp/actions/workflows/linux.yml/badge.svg?branch=main>)](<https://github.com/SnifferCaptain/timestral.cpp/actions/workflows/linux.yml>)
+简体中文 · [English](<README.md>) · [Français](<README_fr.md>) · [![linux](<https://github.com/SnifferCaptain/timestral.cpp/actions/workflows/linux.yml/badge.svg?branch=main>)](<https://github.com/SnifferCaptain/timestral.cpp/actions/workflows/linux.yml>)
 
 [Timestral](<https://github.com/mistralai/timestral>)时间序列模型的本地C++推理库：输入带时间戳的数值序列，输出未来各时刻的中位数、分位数和预测区间。
 
@@ -75,7 +75,7 @@ predict同步返回，submit返回future，权重只加载一次。
 
 ### KV缓存
 
-末次观测不一致时，条件补全按观测布局分阶段计算，不复用共同历史的分页KV。支持分页的流式请求按patch缓存。以5M为例，每页32点，cachePages默认按通道数各分配64页，设为0关闭；单变量16k历史需512页。
+末次观测不一致时，条件补全按观测布局分阶段计算，不复用共同历史的分页KV。支持分页的流式请求按patch缓存，对称平均的镜像pass另有自己的页。以5M为例，每页32点，cachePages默认按通道数各以2048页为上限并按需分配，设为0关闭。每个Result带一个session：Request填上session后只放新读数，库会把它们接到保存的历史之后。同步会话默认在保留历史不超过512点时使用全部新读数，允许重做prefill；可用fullPrefillThreshold调整，0始终固定边界。超过阈值后固定最后一次完整接纳的patch边界，未满patch的尾部暂存，凑满后才参与预测。Result.bufferedSamples报告暂存点数，返回窗口仍紧接最新读数。超过上下文上限时仍按整patch滑窗重算。
 
 ## 性能
 
@@ -85,7 +85,7 @@ Timestral-5M，3次取中位，关闭对称平均与非负截断；ar每轮1patc
 
 ![各后端32k prefill与16k上下文到1k的ar/par解码耗时](<assets/backend-compare-1k-20261026.png>)
 
-原始数据与配方见[测量口径](<doc/benchmark.md>)。
+原始数据与配方见[测量口径](<doc/zh/benchmark.md>)。
 
 ### Prefill耗时
 
@@ -101,7 +101,7 @@ Timestral-5M，3次取中位，关闭对称平均与非负截断；ar每轮1patc
 | 16k | 1954.58 | 1086.64 | 889.81 | 784.45 | 819.54 | 152.42 | 112.14 | 73.33 | 229.22 | 146.71 | 154.96 | 153.84 | 60.03 | 45.15 | 435.50 | 76.36 |
 | 32k | 5035.31 | 3284.99 | 3066.65 | 2906.21 | 2580.37 | 488.94 | 354.55 | 224.23 | 706.29 | 499.09 | 529.33 | 501.28 | 168.30 | 138.33 | 1672.28 | 229.07 |
 
-[2/4/8变量结果](<doc/benchmark.md#多变量prefill>)。
+[2/4/8变量结果](<doc/zh/benchmark.md#多变量prefill>)。
 
 ### 滑动窗口
 
@@ -111,19 +111,19 @@ Timestral-5M，3次取中位，关闭对称平均与非负截断；ar每轮1patc
 
 ### 短预测精度与解码块大小
 
-六种函数的4k预测；数值对照有54个点超出误差预算。[数据与测量口径](<doc/benchmark.md#短预测精度与块大小>)
+六种函数的4k预测；数值对照有54个点超出误差预算。[数据与测量口径](<doc/zh/benchmark.md#短预测精度与块大小>)
 
 ![综合RMSE与4k解码耗时](<assets/block-ar-4k-summary-20261026.png>)
 
 ## 后端与配置
 
-默认reference只依赖标准库。自写BLAS不链接外部库，x86按AVX2、SSE4.2、标量选核，ARM与RISC-V选BLAS时改选Eigen。Eigen与ytensor用仓库内可选依赖，ytensor需C++20与AVX2/FMA。Vulkan需要头文件、loader与计算驱动；shader可使用编译器或完整预编译包，见[Vulkan使用说明](<doc/vulkan.md>)。可选后端互斥。
+未选后端时x86默认构建自写BLAS，它不链接外部库，运行期按AVX2、SSE4.2、标量选核。其它目标默认reference，只依赖标准库，ARM与RISC-V选BLAS时改选Eigen；TIMESTRAL_USE_REFERENCE强制使用reference。Eigen与ytensor用仓库内可选依赖，ytensor需C++20与AVX2/FMA。Vulkan需要头文件、loader与计算驱动；shader可使用编译器或完整预编译包，见[Vulkan使用说明](<doc/zh/vulkan.md>)。可选后端互斥。
 
 ~~~bash
 cmake -S . -B build-blas -DCMAKE_BUILD_TYPE=Release -DTIMESTRAL_USE_BLAS=ON
 ~~~
 
-其余开关：TIMESTRAL_USE_EIGEN、TIMESTRAL_USE_YTENSOR、TIMESTRAL_USE_VULKAN，BLAS可用TIMESTRAL_BLAS_DECODE选FP16、BF16或INT8。[Settings](<timestral/timestral.hpp#L38-L55>)在构造时固定：threads默认1，patchBatch默认16，cachePages默认64。
+其余开关：TIMESTRAL_USE_EIGEN、TIMESTRAL_USE_YTENSOR、TIMESTRAL_USE_VULKAN，BLAS可用TIMESTRAL_BLAS_DECODE选FP16、BF16或INT8。[Settings](<timestral/timestral.hpp#L40-L57>)在构造时固定：threads默认1，patchBatch默认16，cachePages默认2048。attentionMask为time轴patch token附加可见性谓词；reference与BLAS原生执行，Eigen、ytensor与Vulkan会改用reference，明显变慢。
 
 ## 支持范围
 
@@ -146,7 +146,7 @@ cmake -S . -B build-blas -DCMAKE_BUILD_TYPE=Release -DTIMESTRAL_USE_BLAS=ON
 2. 未实现MoltenVK所需的portability enumeration与subset适配。
 3. 自写BLAS只有x86内核；ytensor要求x86 AVX2+FMA。
 
-Linux构建问题已按审计报告修正，GCC/Clang CI尚未执行；ARM与RISC-V无实机推理验收。ytensor在Windows有实测，但parallelDecodeReal仍超出冻结数值预算，见[兼容性记录](<doc/linuxCompatibility.md>)。真实5M已完成逐层与预测对照，28M、123M、209M只核对配置与权重契约。
+Linux构建问题已按审计报告修正，GCC/Clang CI尚未执行；ARM与RISC-V无实机推理验收。ytensor在Windows有实测，但parallelDecodeReal仍超出冻结数值预算，见[兼容性记录](<doc/zh/linuxCompatibility.md>)。真实5M已完成逐层与预测对照，28M、123M、209M只核对配置与权重契约。
 
 ### Vulkan设备
 
@@ -155,12 +155,12 @@ Linux构建问题已按审计报告修正，GCC/Clang CI尚未执行；ARM与RIS
 | Windows x86-64 | AMD RDNA 2 | ✅✅ | 常规5M模型、分页与共享前缀、基础算子、专用GLSL优化；8变量压力测试仍有失败 |
 | Windows x86-64 | NVIDIA Ada（SM 8.9） | ✅✅ | 常规模型、算子与专用优化；长查询预算有已知失败 |
 | Windows、GNU/Linux | Intel Xe核显 | ⚠ | 通用能力与subgroup适配已就位，无实机结果，🗓️目标硬件验收 |
-| GNU/Linux | 软件Vulkan、AMD、NVIDIA | ⚠ | 只有早期软件ICD小规模smoke，当前CI待执行 |
+| GNU/Linux | 软件Vulkan、AMD、NVIDIA | ⚠ | 只有早期软件ICD小规模smoke，CI只验证构建与链接，不含推理实跑 |
 
-RDNA 2与Ada各只测过一款设备（Radeon 680M、RTX 4060 Laptop）。GPU后端仅Vulkan，见[GPU后端范围](<doc/gpuScope.md>)。
+RDNA 2与Ada各只测过一款设备（Radeon 680M、RTX 4060 Laptop）。GPU后端仅Vulkan，见[GPU后端范围](<doc/zh/gpuScope.md>)。
 
 ## 文档与许可
 
-接口参考见[API参考](<doc/api.md>)，推理细节见[推理说明](<doc/inference.md>)，后端选用见[计算后端](<doc/backends.md>)，其它教程见[文档索引](<doc/README.md>)，命令行参数见[示例说明](<example/README.md>)。
+接口参考见[API参考](<doc/zh/api.md>)，推理细节见[推理说明](<doc/zh/inference.md>)，后端选用见[计算后端](<doc/zh/backends.md>)，其它教程见[文档索引](<doc/README.md>)，版本变更见[更新历史](<doc/zh/changelog.md>)，命令行参数见[示例说明](<example/README.md>)。
 
 Timestral移植部分源自上游Apache-2.0项目，来源见[第三方说明](<THIRD_PARTY.md>)。本仓库整体许可为[MIT](<LICENSE>)；发布权重使用单独的Modified MIT许可，不在本仓库分发。

@@ -255,12 +255,26 @@ Tensor Model::project(const Tensor& input, const std::string& name, bool bias) c
     const std::size_t row = input.size() / inDim;
     auto shape = input.shape;
     shape.back() = outDim;
+    // 当前YBLAS微核为6行，统一整行块以避免GEMV及尾块改变K分块累加顺序
+    constexpr std::size_t rowBlock = 6;
+    if (row > static_cast<std::size_t>(std::numeric_limits<int>::max()) - rowBlock + 1
+        || inDim > static_cast<std::size_t>(std::numeric_limits<int>::max())
+        || outDim > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
+        throw std::invalid_argument("ytensor linear: dimensions exceed the backend integer range");
+    }
+    const std::size_t paddedRows = (row + rowBlock - 1) / rowBlock * rowBlock;
+    Tensor padded;
+    if (row != paddedRows) {
+        padded = Tensor({paddedRows, inDim});
+        std::copy(input.values.begin(), input.values.end(), padded.values.begin());
+    }
     Tensor output(shape);
     if (row != 0 && outDim != 0) {
-        const int rowInt = static_cast<int>(row);
+        const int rowInt = static_cast<int>(paddedRows);
         const int inDimInt = static_cast<int>(inDim);
         const int outDimInt = static_cast<int>(outDim);
-        const auto left = stridedView(input.values, 0, {rowInt, inDimInt}, {inDimInt, 1});
+        const auto& values = padded.values.empty() ? input.values : padded.values;
+        const auto left = stridedView(values, 0, {rowInt, inDimInt}, {inDimInt, 1});
         // W布局(out,in)：B=W^T按行步幅1、列步幅inDim表达，无需显式转置
         const auto right = stridedView(weight.values, 0, {inDimInt, outDimInt}, {1, inDimInt});
         const auto result = yt::strided::matmul(left, right, matmulBackend);

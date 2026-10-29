@@ -7,7 +7,8 @@ find_package(Threads REQUIRED)
 option(TIMESTRAL_BUILD_TESTS "构建无第三方框架的测试（tests为本地工作区，不随仓库分发）" OFF)
 option(TIMESTRAL_USE_EIGEN "启用Eigen可选后端" OFF)
 option(TIMESTRAL_USE_YTENSOR "启用ytensor可选后端" OFF)
-option(TIMESTRAL_USE_BLAS "启用无外部依赖的专用BLAS后端" OFF)
+option(TIMESTRAL_USE_BLAS "启用无外部依赖的专用BLAS后端，x86上未选其它后端时默认采用" OFF)
+option(TIMESTRAL_USE_REFERENCE "强制使用逐元素reference后端，用于数值对照" OFF)
 option(TIMESTRAL_BUILD_VULKAN_KERNELS "构建独立Vulkan算子验证组件" OFF)
 option(TIMESTRAL_USE_VULKAN "启用Vulkan模型后端" OFF)
 option(TIMESTRAL_BLAS_AVX2 "BLAS编译AVX2+FMA3运行期分派内核" ON)
@@ -31,7 +32,7 @@ endif()
 
 set(TIMESTRAL_BACKEND_COUNT 0)
 foreach(BACKEND TIMESTRAL_USE_EIGEN TIMESTRAL_USE_YTENSOR TIMESTRAL_USE_BLAS
-    TIMESTRAL_USE_VULKAN)
+    TIMESTRAL_USE_VULKAN TIMESTRAL_USE_REFERENCE)
     if(${BACKEND})
         math(EXPR TIMESTRAL_BACKEND_COUNT "${TIMESTRAL_BACKEND_COUNT}+1")
     endif()
@@ -50,6 +51,11 @@ endif()
 set(TIMESTRAL_X86_TARGET OFF)
 if(TIMESTRAL_TARGET_PROCESSOR MATCHES "^(AMD64|amd64|x86_64|X86_64|x64|Win32|i[3-6]86|x86)$")
     set(TIMESTRAL_X86_TARGET ON)
+endif()
+# 未选后端时x86默认BLAS单线程，它无外部依赖且与reference数值对照通过；其它架构保持reference
+if(TIMESTRAL_BACKEND_COUNT EQUAL 0 AND TIMESTRAL_X86_TARGET)
+    message(STATUS "未选择计算后端，x86目标默认采用BLAS")
+    set(TIMESTRAL_USE_BLAS ON)
 endif()
 if(TIMESTRAL_USE_BLAS AND NOT TIMESTRAL_X86_TARGET)
     message(STATUS "非x86目标不提供自写BLAS，实际选择Eigen后端")
@@ -368,6 +374,24 @@ if(TIMESTRAL_BUILD_TESTS)
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/model/timestral-5m/model.safetensors")
         add_test(NAME timestral
             COMMAND timestralTest
+                "${CMAKE_CURRENT_SOURCE_DIR}/model/timestral-5m"
+        )
+    endif()
+
+    add_executable(apiTest tests/apiTest.cpp)
+    target_link_libraries(apiTest PRIVATE timestral)
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/model/timestral-5m/model.safetensors")
+        add_test(NAME api
+            COMMAND apiTest
+                "${CMAKE_CURRENT_SOURCE_DIR}/model/timestral-5m"
+        )
+    endif()
+
+    add_executable(serviceAuditTest tests/serviceAuditTest.cpp)
+    target_link_libraries(serviceAuditTest PRIVATE timestral)
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/model/timestral-5m/model.safetensors")
+        add_test(NAME serviceAudit
+            COMMAND serviceAuditTest
                 "${CMAKE_CURRENT_SOURCE_DIR}/model/timestral-5m"
         )
     endif()

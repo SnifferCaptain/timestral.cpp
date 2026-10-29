@@ -16,9 +16,12 @@ std::shared_ptr<const Model> loadBackendModel(
     const ModelConfig& config,
     utils::Safetensors&& weights,
     std::size_t threads,
-    std::size_t
+    std::size_t,
+    std::function<bool(std::size_t, std::size_t)> timeMask
 ) {
-    return std::make_shared<const blas::Model>(config, std::move(weights), blas::defaultDecodeFormat(), threads);
+    auto model = std::make_shared<blas::Model>(config, std::move(weights), blas::defaultDecodeFormat(), threads);
+    model->setTimeMask(std::move(timeMask));
+    return model;
 }
 
 } // namespace timestral

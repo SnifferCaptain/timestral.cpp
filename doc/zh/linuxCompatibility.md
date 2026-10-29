@@ -1,6 +1,6 @@
 # Linux兼容性修复与验证边界
 
-本文的测试计数记录当时的兼容性修复。后续用户决定移除OpenGL/OpenCL组件，相关代码、构建和CI任务现已删除；现行平台状态以[主说明矩阵](<../README_zh.md#平台与后端矩阵>)为准，取舍见[GPU后端范围](<gpuScope.md>)。
+本文的测试计数记录当时的兼容性修复。后续用户决定移除OpenGL/OpenCL组件，相关代码、构建和CI任务现已删除；现行平台状态以[主说明矩阵](<../../README_zh.md#平台与后端矩阵>)为准，取舍见[GPU后端范围](<gpuScope.md>)。
 
 本次按审计报告逐项修正可确认的构建问题。默认部署仍是C++17，不新增运行时第三方依赖，不修改预测算法、权重、默认解码步长或冻结误差预算。当前主机为Windows/MSVC，没有可用Linux发行版、GCC或Clang，不能把下表的本机结果写成Linux实测通过。
 
@@ -8,15 +8,15 @@
 
 | 报告问题 | 当前处理 | 证据入口 |
 | --- | --- | --- |
-| 嵌套Settings默认参数阻断GCC/Clang | 去掉类内默认实参，新增单参数委托构造及loadEngine重载；Settings仍为聚合，没有用户构造函数 | [公开声明](<../timestral/timestral.hpp>)、[默认加载](<../timestral/utils/engine.cpp>) |
-| 线程只在测试/BLAS分支出现 | 根配置无条件发现Threads，timestral与Vulkan kernels各自PUBLIC链接Threads::Threads；旧OpenCL组件现已删除 | [根配置](<../CMakeLists.txt>)、[独立下游测试](<../tests/embedding/CMakeLists.txt>) |
-| ytensor源文件COMPILE_FEATURES没有实际升级标准 | 使用独立C++20 OBJECT目标，核心与工厂继续C++17；CI断言实际compile_commands | [构建配置](<../CMakeLists.txt>)、[Linux CI](<../.github/workflows/linux.yml>) |
-| ytensor整单元AVX2/FMA会在旧CPU非法指令 | 仅模型对象启用AVX2/FMA，基线工厂先检查CPUID、OSXSAVE和XMM/YMM状态，不满足时明确拒绝；关闭两侧IPO/unity，避免优化越过安全边界 | [CPU检查](<../timestral/utils/cpu.cpp>)、[工厂](<../timestral/ytensor/backend.cpp>) |
-| Vulkan只找glslc | AUTO优先glslc，找不到时使用glslangValidator/glslang，支持路径与种类显式覆盖，两套命令均以Vulkan1.1为目标 | [编译器选择](<../timestral/vulkan/shaderCompiler.cmake>) |
-| shader编译器-NOTFOUND缓存污染 | 用户覆盖项与自动探测结果分开，不将自动结果强写回用户项；测试覆盖缺失、后来出现和强制切换种类 | [可重复选择测试](<../tests/shaderCompilerTest.cmake>) |
-| 离线SPIR-V不完整/不匹配 | 逐一检查26普通+26预算模块，检查SPIR-V magic，存在spirv-val时在配置期验证；完整离线目录不寻找编译器 | [Vulkan构建](<../timestral/vulkan/CMakeLists.txt>) |
-| C++20 char8_t路径拼接失败 | 统一提取UTF-8字节，不使用本地代码页窄化；实现及测试夹具共用转换，JSON原始UTF-8测试不再把char8_t当char | [路径转换](<../timestral/utils/path.hpp>)、[双标准回归](<../tests/portabilityTest.cpp>) |
-| config.cpp范围循环临时string警告 | 字面量遍历用const char*，错误拼接时显式std::string，消息含义不变 | [配置解析](<../timestral/utils/config.cpp>) |
+| 嵌套Settings默认参数阻断GCC/Clang | 去掉类内默认实参，新增单参数委托构造及loadEngine重载；Settings仍为聚合，没有用户构造函数 | [公开声明](<../../timestral/timestral.hpp>)、[默认加载](<../../timestral/utils/engine.cpp>) |
+| 线程只在测试/BLAS分支出现 | 根配置无条件发现Threads，timestral与Vulkan kernels各自PUBLIC链接Threads::Threads；旧OpenCL组件现已删除 | [根配置](<../../CMakeLists.txt>)、[独立下游测试](<../../tests/embedding/CMakeLists.txt>) |
+| ytensor源文件COMPILE_FEATURES没有实际升级标准 | 使用独立C++20 OBJECT目标，核心与工厂继续C++17；CI断言实际compile_commands | [构建配置](<../../CMakeLists.txt>)、[Linux CI](<../../.github/workflows/linux.yml>) |
+| ytensor整单元AVX2/FMA会在旧CPU非法指令 | 仅模型对象启用AVX2/FMA，基线工厂先检查CPUID、OSXSAVE和XMM/YMM状态，不满足时明确拒绝；关闭两侧IPO/unity，避免优化越过安全边界 | [CPU检查](<../../timestral/utils/cpu.cpp>)、[工厂](<../../timestral/ytensor/backend.cpp>) |
+| Vulkan只找glslc | AUTO优先glslc，找不到时使用glslangValidator/glslang，支持路径与种类显式覆盖，两套命令均以Vulkan1.1为目标 | [编译器选择](<../../timestral/vulkan/shaderCompiler.cmake>) |
+| shader编译器-NOTFOUND缓存污染 | 用户覆盖项与自动探测结果分开，不将自动结果强写回用户项；测试覆盖缺失、后来出现和强制切换种类 | [可重复选择测试](<../../tests/shaderCompilerTest.cmake>) |
+| 离线SPIR-V不完整/不匹配 | 逐一检查26普通+26预算模块，检查SPIR-V magic，存在spirv-val时在配置期验证；完整离线目录不寻找编译器 | [Vulkan构建](<../../timestral/vulkan/CMakeLists.txt>) |
+| C++20 char8_t路径拼接失败 | 统一提取UTF-8字节，不使用本地代码页窄化；实现及测试夹具共用转换，JSON原始UTF-8测试不再把char8_t当char | [路径转换](<../../timestral/utils/path.hpp>)、[双标准回归](<../../tests/portabilityTest.cpp>) |
+| config.cpp范围循环临时string警告 | 字面量遍历用const char*，错误拼接时显式std::string，消息含义不变 | [配置解析](<../../timestral/utils/config.cpp>) |
 | OpenGL/OpenCL平台边界不清 | 后续评估不是低成本完整迁移，按用户决定删除实验代码和构建/CI入口，不作为后端保留 | [取舍依据](<gpuScope.md>) |
 
 选择ytensor仍要求x86 AVX2+FMA及OS支持。非x86配置期拒绝，旧x86在进入优化模型前抛出可解释异常，建议用户选择reference或Eigen；没有静默冒充ytensor的后端回退。BLAS原有多ISA运行期分派不变。
@@ -47,9 +47,9 @@
 
 ## Linux待执行的回归
 
-[Linux工作流](<../.github/workflows/linux.yml>)现固定Ubuntu22.04上的GCC11与Clang14，覆盖reference、全核心C++20、BLAS、Eigen、ytensor；ytensor实际命令必须只在模型单元出现-std=c++20/-mavx2/-mfma，基线工厂/CPU检查不能带AVX2。另有：
+[Linux工作流](<../../.github/workflows/linux.yml>)现固定Ubuntu22.04上的GCC11与Clang14，覆盖reference、全核心C++20、BLAS、Eigen、ytensor；ytensor实际命令必须只在模型单元出现-std=c++20/-mavx2/-mfma，基线工厂/CPU检查不能带AVX2。另有：
 
-- QEMU Nehalem进程实际运行[无AVX2防护测试](<../tests/ytensorGuardTest.cpp>)，不是只模拟CPUID位
+- QEMU Nehalem进程实际运行[无AVX2防护测试](<../../tests/ytensorGuardTest.cpp>)，不是只模拟CPUID位
 - tests关闭的独立消费者编译/链接，不依赖测试目标补上pthread
 - RISC-V交叉构建必须实际选中Eigen，移除旧的掩盖失败命令
 - glslc/glslangValidator各构建52模块并以spirv-val验证，使用llvmpipe软件ICD只运行ABI和小smoke

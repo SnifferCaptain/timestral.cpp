@@ -457,7 +457,7 @@ Engine::Engine(std::shared_ptr<const Model> model, const Timestral::Settings& se
     if (settings.patchBatch == 0) {
         throw std::invalid_argument("engine patchBatch must be positive");
     }
-    patchBatch = std::min(settings.patchBatch, this->model->config().blockSize);
+    patchBlock = std::min(settings.patchBatch, this->model->config().blockSize);
     if (!std::isfinite(settings.ropeReferenceInterval) || settings.ropeReferenceInterval < 0.0) {
         throw std::invalid_argument("ropeReferenceInterval must be finite and nonnegative");
     }
@@ -471,6 +471,10 @@ const ModelConfig& Engine::config() const {
 
 std::size_t Engine::maxContext() const {
     return contextLimit;
+}
+
+std::size_t Engine::patchBatch() const {
+    return patchBlock;
 }
 
 bool Engine::continuousRope() const {
@@ -504,7 +508,27 @@ void Engine::appendPages(
     PagePool& pool,
     std::vector<std::size_t>& table
 ) const {
-    model->appendPages(input, pool, table);
+    const std::size_t originalSize = table.size();
+    std::vector<std::size_t> references(pool.capacity());
+    for (std::size_t i = 0; i < references.size(); ++i) {
+        references[i] = pool.page(i).references;
+    }
+    try {
+        model->appendPages(input, pool, table);
+    } catch (...) {
+        // 后端可能在写入页表前已占用新页，失败时必须清除半成品及其引用
+        table.resize(originalSize);
+        for (std::size_t i = 0; i < references.size(); ++i) {
+            const bool acquired = pool.page(i).references > references[i];
+            while (pool.page(i).references > references[i]) {
+                pool.release(i);
+            }
+            if (acquired && references[i] == 0) {
+                pool.discard(i);
+            }
+        }
+        throw;
+    }
 }
 
 Tensor Engine::decodePages(
@@ -523,6 +547,7 @@ Tensor Engine::computePrediction(
     const Tensor& knownCovariates,
     PagePool& pool,
     std::vector<std::size_t>& table,
+    std::vector<std::size_t>& mirrorTable,
     TimingStats& timing,
     bool incremental,
     bool sharedPages,
@@ -586,7 +611,7 @@ Tensor Engine::computePrediction(
     Tensor quantiles = rawForecast(
         *model,
         contextLimit,
-        patchBatch,
+        patchBlock,
         filled,
         mask,
         batch,
@@ -606,13 +631,14 @@ Tensor Engine::computePrediction(
         referenceInterval
     );
     if (request.symmetricAveraging) {
-        // 镜像pass把上下文取负，已缓存的页属于正号上下文，不能复用：用空页池全量重算
-        PagePool mirroredPool;
-        std::vector<std::size_t> mirroredTable;
+        // 镜像pass的上下文取负，只能读取调用方按取负前缀编码的页表，否则用空页池全量重算
+        const bool mirrorCached = incremental && !mirrorTable.empty();
+        PagePool emptyPool;
+        std::vector<std::size_t> emptyTable;
         const Tensor mirrored = rawForecast(
             *model,
             contextLimit,
-            patchBatch,
+            patchBlock,
             filled,
             mask,
             batch,
@@ -622,11 +648,11 @@ Tensor Engine::computePrediction(
             pastCovariates,
             knownCovariates,
             -1.0f,
-            mirroredPool,
-            mirroredTable,
+            mirrorCached ? pool : emptyPool,
+            mirrorCached ? mirrorTable : emptyTable,
             timing,
-            false,
-            false,
+            mirrorCached,
+            sharedPages,
             inputTimes,
             interval,
             referenceInterval
@@ -782,6 +808,7 @@ Tensor Engine::predict(
 ) const {
     PagePool emptyPool;
     std::vector<std::size_t> emptyTable;
+    std::vector<std::size_t> emptyMirror;
     TimingStats timing;
     return computePrediction(
         input,
@@ -791,6 +818,7 @@ Tensor Engine::predict(
         knownCovariates,
         emptyPool,
         emptyTable,
+        emptyMirror,
         timing,
         false,
         false,
@@ -809,6 +837,21 @@ Tensor Engine::predictStreamed(
     const std::vector<double>& times,
     double interval
 ) const {
+    std::vector<std::size_t> noMirror;
+    return predictStreamed(context, predictionLength, request, pool, table, noMirror, timing, times, interval);
+}
+
+Tensor Engine::predictStreamed(
+    const Tensor& context,
+    std::size_t predictionLength,
+    const Timestral::Request& request,
+    PagePool& pool,
+    std::vector<std::size_t>& table,
+    std::vector<std::size_t>& mirrorTable,
+    TimingStats& timing,
+    const std::vector<double>& times,
+    double interval
+) const {
     if (!supportsIncremental()) {
         throw std::runtime_error("predictStreamed: backend does not support incremental page cache");
     }
@@ -821,6 +864,7 @@ Tensor Engine::predictStreamed(
         noCovariates,
         pool,
         table,
+        mirrorTable,
         timing,
         true,
         false,
@@ -835,6 +879,21 @@ Tensor Engine::decodeShared(
     const Timestral::Request& request,
     PagePool& pool,
     const std::vector<std::size_t>& table,
+    TimingStats& timing,
+    const std::vector<double>& times,
+    double interval
+) const {
+    const std::vector<std::size_t> noMirror;
+    return decodeShared(context, predictionLength, request, pool, table, noMirror, timing, times, interval);
+}
+
+Tensor Engine::decodeShared(
+    const Tensor& context,
+    std::size_t predictionLength,
+    const Timestral::Request& request,
+    PagePool& pool,
+    const std::vector<std::size_t>& table,
+    const std::vector<std::size_t>& mirrorTable,
     TimingStats& timing,
     const std::vector<double>& times,
     double interval
@@ -864,6 +923,7 @@ Tensor Engine::decodeShared(
     }
     // 共享页表引用归调用方所有：传副本，上下文截断时只丢弃副本上的页表
     std::vector<std::size_t> localTable = table;
+    std::vector<std::size_t> localMirror = mirrorTable;
     const Tensor noCovariates;
     return computePrediction(
         context,
@@ -873,6 +933,7 @@ Tensor Engine::decodeShared(
         noCovariates,
         pool,
         localTable,
+        localMirror,
         timing,
         true,
         true,
@@ -888,7 +949,7 @@ std::shared_ptr<const Engine> loadEngine(
     const ModelConfig config = ModelConfig::load(directory / "config.json");
     utils::Safetensors weights = utils::Safetensors::load(directory / "model.safetensors");
     return std::make_shared<const Engine>(
-        loadBackendModel(config, std::move(weights), settings.threads, settings.gpuThreads),
+        loadBackendModel(config, std::move(weights), settings.threads, settings.gpuThreads, settings.attentionMask),
         settings
     );
 }

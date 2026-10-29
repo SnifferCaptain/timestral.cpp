@@ -33,7 +33,7 @@ static double inferInterval(const std::vector<Sample>& history, const std::strin
     }
     const double upper = intervals[count / 2];
     const double lower = *std::max_element(intervals.begin(), middle);
-    return 0.5 * (lower + upper);
+    return lower + 0.5 * (upper - lower);
 }
 
 double resolveInterval(
@@ -47,20 +47,31 @@ double resolveInterval(
     if (sampleInterval > 0.0) {
         return sampleInterval;
     }
-    return inferInterval(history, name);
+    const double inferred = inferInterval(history, name);
+    if (!std::isfinite(inferred) || inferred <= 0.0) {
+        throw std::invalid_argument(name + ": inferred sampleInterval must be finite and positive");
+    }
+    return inferred;
 }
 
 std::size_t stepCount(double horizonSeconds, double interval, const std::string& name) {
     if (!std::isfinite(horizonSeconds) || horizonSeconds <= 0.0) {
         throw std::invalid_argument(name + ": horizonSeconds must be finite and positive");
     }
+    if (!std::isfinite(interval) || interval <= 0.0) {
+        throw std::invalid_argument(name + ": sampleInterval must be finite and positive");
+    }
     const double ratio = horizonSeconds / interval;
     if (!std::isfinite(ratio)
         || ratio >= static_cast<double>(std::numeric_limits<long long>::max())) {
         throw std::invalid_argument(name + ": horizonSeconds is outside the supported range");
     }
-    const long long rounded = std::llround(ratio);
-    return static_cast<std::size_t>(std::max<long long>(rounded, 1));
+    const long long rounded = std::max<long long>(std::llround(ratio), 1);
+    const std::size_t steps = static_cast<std::size_t>(rounded);
+    if (static_cast<unsigned long long>(steps) != static_cast<unsigned long long>(rounded)) {
+        throw std::invalid_argument(name + ": horizonSeconds exceeds the addressable step count");
+    }
+    return steps;
 }
 
 // 时间戳有限、严格递增，读数有限或NaN（NaN表示缺测），无穷非法

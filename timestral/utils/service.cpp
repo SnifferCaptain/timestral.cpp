@@ -69,6 +69,8 @@ Service::Service(
       maxBatch(std::max<std::size_t>(1, settings.maxBatch)),
       maxVariables(settings.maxVariables),
       pageCapacity(settings.cachePages),
+      maxSessions(settings.maxSessions),
+      fullPrefillThreshold(settings.fullPrefillThreshold),
       policyValue(policy) {
     if (!this->engine) {
         throw std::invalid_argument("service requires a loaded engine");
@@ -102,7 +104,11 @@ Service::~Service() {
 std::future<Timestral::Result> Service::submit(Timestral::Request request) {
     QueuedRequest queued;
     queued.request = std::move(request);
+    // 历史合并与入队保持同一顺序，防止新快照先入队后又被旧快照替换
+    std::unique_lock<std::mutex> sessionLock(sessionMutex);
+    attachSession(queued);
     prepare(queued);
+    commitSession(queued);
     std::future<Timestral::Result> future = queued.promise.get_future();
     {
         std::lock_guard<std::mutex> lock(queueMutex);
@@ -110,7 +116,11 @@ std::future<Timestral::Result> Service::submit(Timestral::Request request) {
             queued.promise.set_exception(std::make_exception_ptr(EngineShutdown()));
             return future;
         }
-        if (queued.request.streamId.empty()) {
+        if (queued.continued && queued.request.streamId.empty()) {
+            // 续接会话按会话去重，页表视图执行完即归还，页留在LRU中供下次命中
+            queued.request.streamId = "session:" + queued.request.session;
+            queued.anonymous = true;
+        } else if (queued.request.streamId.empty()) {
             // 匿名与具名来源使用不同命名空间，序号保证哈希碰撞时仍不混源
             queued.anonymous = true;
             if (anonymousCount == std::numeric_limits<std::size_t>::max()) {
@@ -138,6 +148,7 @@ std::future<Timestral::Result> Service::submit(Timestral::Request request) {
             mailbox[queue.back().request.streamId] = --queue.end();
         }
     }
+    sessionLock.unlock();
     condition.notify_one();
     return future;
 }
@@ -178,24 +189,139 @@ Timestral::Policy Service::policy() const {
     return policyValue;
 }
 
-void Service::abort(const std::string& streamId) {
-    const std::string identity = "named:" + streamId;
-    {
-        std::lock_guard<std::mutex> lock(queueMutex);
-        for (auto entry = queue.begin(); entry != queue.end(); ) {
-            if (entry->request.streamId == identity) {
-                try {
-                    entry->promise.set_exception(std::make_exception_ptr(Timestral::RequestSuperseded()));
-                } catch (...) {
-                    // 调用方已丢弃future时承诺可能失效，作废流程继续
+void Service::cancelQueued(const std::string& identity, const std::string& session) {
+    std::lock_guard<std::mutex> lock(queueMutex);
+    for (auto entry = queue.begin(); entry != queue.end(); ) {
+        if (entry->request.streamId == identity || (!session.empty() && entry->request.session == session)) {
+            removeMailboxEntry(entry);
+            try {
+                entry->promise.set_exception(std::make_exception_ptr(Timestral::RequestSuperseded()));
+            } catch (...) {
+                // 调用方已丢弃future时承诺可能失效，作废流程继续
+            }
+            entry = queue.erase(entry);
+        } else {
+            ++entry;
+        }
+    }
+    mailbox.erase(identity);
+}
+
+void Service::close(const std::string& session) {
+    if (session.empty()) {
+        return;
+    }
+    std::lock_guard<std::mutex> lock(sessionMutex);
+    sessions.erase(session);
+    cancelQueued("session:" + session, session);
+}
+
+void Service::attachSession(QueuedRequest& queued) const {
+    const std::string& id = queued.request.session;
+    if (id.empty()) {
+        return;
+    }
+    const auto found = sessions.find(id);
+    if (found == sessions.end()) {
+        throw std::invalid_argument(
+            "submit: unknown or expired session \"" + id + "\", resend the full history without a session"
+        );
+    }
+    const auto& stored = found->second.variables;
+    auto& appended = queued.request.variables;
+    if (appended.size() != stored.size()) {
+        throw std::invalid_argument(
+            "submit: session \"" + id + "\" has " + std::to_string(stored.size()) + " variables"
+        );
+    }
+    std::vector<std::vector<Sample>> merged = stored;
+    for (std::size_t channel = 0; channel < merged.size(); ++channel) {
+        for (const Sample& sample : appended[channel]) {
+            if (!merged[channel].empty() && !(sample.time > merged[channel].back().time)) {
+                throw std::invalid_argument(
+                    "submit: appended samples must be later than the last sample of session \"" + id + "\""
+                );
+            }
+            merged[channel].push_back(sample);
+        }
+    }
+    appended = std::move(merged);
+    queued.patchPadding = found->second.patchPadding;
+    queued.continued = true;
+}
+
+void Service::commitSession(QueuedRequest& queued) {
+    if (maxSessions == 0) {
+        queued.request.session.clear();
+        return;
+    }
+    const std::size_t limit = engine->maxContext();
+    const std::size_t patch = config.patchSize;
+    const bool conditional = !queued.observations.values.empty();
+    std::size_t conditionalBegin = 0;
+    bool trimConditional = false;
+    if (conditional) {
+        const std::size_t first = *std::min_element(queued.observedEnds.begin(), queued.observedEnds.end());
+        trimConditional = first > limit && first - limit > limit;
+        if (trimConditional) {
+            conditionalBegin = first - limit;
+        }
+    }
+    // 先完整构造替换历史，分配失败时不留下半更新的会话
+    Session updated;
+    updated.variables.resize(queued.request.variables.size());
+    std::size_t removed = 0;
+    for (std::size_t channel = 0; channel < updated.variables.size(); ++channel) {
+        const auto& source = queued.request.variables[channel];
+        std::size_t drop = 0;
+        if (trimConditional) {
+            // 所有通道按最早待预测位置裁剪，不能删掉辅助短通道所需的已知历史
+            const auto begin = std::lower_bound(
+                source.begin(),
+                source.end(),
+                conditionalBegin,
+                [&queued](const Sample& sample, std::size_t index) {
+                    const long double position = (static_cast<long double>(sample.time) - queued.gridOrigin) / queued.interval;
+                    return std::round(position) < static_cast<long double>(index);
                 }
-                entry = queue.erase(entry);
-            } else {
-                ++entry;
+            );
+            drop = std::min(static_cast<std::size_t>(begin - source.begin()), source.size() - 2 * patch);
+        } else if (!conditional && source.size() > limit && source.size() - limit > limit) {
+            const std::size_t excess = source.size() - limit;
+            drop = excess - (excess % patch + queued.patchPadding) % patch;
+        }
+        updated.variables[channel].assign(source.begin() + static_cast<std::ptrdiff_t>(drop), source.end());
+        if (channel == 0) {
+            removed = drop;
+        }
+    }
+    updated.patchPadding = conditional
+        ? roundPatch(updated.variables.front().size(), patch) - updated.variables.front().size()
+        : (removed == 0 ? queued.patchPadding : 0);
+    updated.lastUse = sessionClock + 1;
+    if (!queued.continued) {
+        if (sessionCount == std::numeric_limits<std::size_t>::max()) {
+            throw std::overflow_error("session identifier exhausted");
+        }
+        queued.request.session = "session-" + std::to_string(sessionCount + 1);
+    }
+    sessions.insert_or_assign(queued.request.session, std::move(updated));
+    sessionCount += queued.continued ? 0 : 1;
+    ++sessionClock;
+    while (sessions.size() > maxSessions) {
+        auto oldest = sessions.begin();
+        for (auto entry = sessions.begin(); entry != sessions.end(); ++entry) {
+            if (entry->second.lastUse < oldest->second.lastUse) {
+                oldest = entry;
             }
         }
-        mailbox.erase(identity);
+        sessions.erase(oldest);
     }
+}
+
+void Service::abort(const std::string& streamId) {
+    const std::string identity = "named:" + streamId;
+    cancelQueued(identity);
     std::lock_guard<std::mutex> lock(streamMutex);
     for (auto& entry : caches) {
         dropView(entry.second, identity);
@@ -229,6 +355,9 @@ void Service::prepare(QueuedRequest& queued) {
             sameGrid = sameGrid && channel[i].time == first[i].time;
         }
     }
+    if (!queued.continued) {
+        queued.patchPadding = roundPatch(first.size(), config.patchSize) - first.size();
+    }
     if (!sameGrid) {
         queued.observations = alignObservations(
             queued.request,
@@ -245,7 +374,7 @@ void Service::prepare(QueuedRequest& queued) {
         if (firstEnd != lastEnd && !config.supportsKnownCovariates()) {
             throw std::invalid_argument("submit: checkpoint cannot condition on known-future covariates");
         }
-        const std::size_t future = stepCount(queued.request.horizonSeconds, queued.interval, name);
+        const std::size_t future = horizonSteps(queued.request, queued.interval);
         if (lastEnd > std::numeric_limits<std::size_t>::max() - future) {
             throw std::invalid_argument("submit: conditional prediction length overflow");
         }
@@ -259,18 +388,29 @@ void Service::prepare(QueuedRequest& queued) {
         queued.request.sampleInterval,
         name
     );
-    queued.steps = stepCount(queued.request.horizonSeconds, queued.interval, name);
-    const std::pair<std::size_t, std::size_t> range = contextRange(
-        queued.request.variables.front(),
-        engine->maxContext(),
-        config.patchSize,
-        name
-    );
-    queued.begin = range.first;
-    queued.kept = range.second;
+    queued.steps = horizonSteps(queued.request, queued.interval);
+    const std::size_t patch = config.patchSize;
+    // 短历史允许重新对齐以使用全部读数，超过阈值后才固定边界并暂存尾部
+    const auto range = contextRange(first, engine->maxContext(), patch, name);
+    const bool shortContext = range.second <= fullPrefillThreshold;
+    if (queued.continued && !shortContext) {
+        queued.bufferedSamples = (first.size() % patch + queued.patchPadding) % patch;
+        const std::size_t encodedEnd = first.size() - queued.bufferedSamples;
+        const std::size_t capacity = engine->maxContext() / patch * patch;
+        queued.begin = roundPatch(encodedEnd, patch) > capacity ? encodedEnd - capacity : 0;
+        queued.kept = encodedEnd - queued.begin;
+    } else {
+        queued.begin = range.first;
+        queued.kept = range.second;
+        queued.patchPadding = roundPatch(first.size(), patch) - first.size();
+    }
+    if (queued.steps > std::numeric_limits<std::size_t>::max() - queued.bufferedSamples) {
+        throw std::invalid_argument("submit: buffered prediction length overflow");
+    }
+    elementCount({queued.request.variables.size(), queued.steps + queued.bufferedSamples, config.quantileKnots.size()});
     // FP32范围同样属于提交期校验
     for (const auto& channel : queued.request.variables) {
-        for (std::size_t i = queued.begin; i < queued.begin + queued.kept; ++i) {
+        for (std::size_t i = queued.begin; i < first.size(); ++i) {
             fp32Sample(channel, i, name);
         }
     }
@@ -280,8 +420,16 @@ void Service::prepare(QueuedRequest& queued) {
     queued.streamingGrid = engine->supportsIncremental()
         && (!engine->continuousRope() || queued.kept % config.patchSize == 0)
         && gridLength <= engine->maxContext()
-        && queued.kept / config.patchSize <= pageCapacity;
+        && gridLength / config.patchSize <= pageCapacity;
     queued.gridLength = queued.streamingGrid ? gridLength : queued.kept;
+}
+
+std::size_t Service::horizonSteps(const Timestral::Request& request, double interval) const {
+    // 0取一轮块AR的整块，即patchBatch个patch，一次前向即可得到
+    if (request.horizonSeconds == 0.0) {
+        return engine->patchBatch() * config.patchSize;
+    }
+    return stepCount(request.horizonSeconds, interval, "submit");
 }
 
 void Service::run() {
@@ -320,13 +468,31 @@ std::vector<double> Service::timeGrid(const QueuedRequest& queued, std::size_t l
     if (!engine->continuousRope()) {
         return {};
     }
+    // 网格长于保留历史时左侧补齐，与fillContext的布局一致
     std::vector<double> times(length);
     const auto& channel = queued.request.variables.front();
+    const std::size_t padding = length - queued.kept;
+    const double firstTime = channel[queued.begin].time;
     for (std::size_t i = 0; i < length; ++i) {
-        times[i] = i < queued.kept ? channel[queued.begin + i].time
-            : channel[queued.begin + queued.kept - 1].time + static_cast<double>(i - queued.kept + 1) * queued.interval;
+        times[i] = i < padding ? firstTime - static_cast<double>(padding - i) * queued.interval
+            : channel[queued.begin + i - padding].time;
     }
     return times;
+}
+
+void Service::fillContext(const QueuedRequest& queued, Tensor& context, std::size_t row) const {
+    const std::size_t channels = context.shape[1];
+    const std::size_t gridLength = context.shape[2];
+    const std::size_t padding = gridLength - queued.kept;
+    for (std::size_t channel = 0; channel < channels; ++channel) {
+        for (std::size_t i = 0; i < queued.kept; ++i) {
+            context.values[(row * channels + channel) * gridLength + padding + i] = fp32Sample(
+                queued.request.variables[channel],
+                queued.begin + i,
+                "submit"
+            );
+        }
+    }
 }
 
 void Service::takeFront(std::vector<QueuedRequest>& round) {
@@ -396,7 +562,8 @@ bool Service::batchable(const QueuedRequest& first, const QueuedRequest& next) c
     if (first.steps != next.steps || first.interval != next.interval) {
         return false;
     }
-    if (first.streamingGrid != next.streamingGrid || first.gridLength != next.gridLength) {
+    if (first.streamingGrid != next.streamingGrid || first.gridLength != next.gridLength
+        || first.kept != next.kept || first.bufferedSamples != next.bufferedSamples) {
         return false;
     }
     // 这两个标志决定每行的后处理，拼批时必须一致才能共用一次前向
@@ -414,6 +581,9 @@ void Service::executeRound(std::vector<QueuedRequest>& round) {
     if (round.size() == 1) {
         executeOne(round.front());
         return;
+    }
+    for (const auto& queued : round) {
+        releaseViews(queued.request.streamId);
     }
     if (!round.front().streamingGrid) {
         executeBatch(round);
@@ -530,21 +700,12 @@ void Service::executeShared(
     const std::vector<std::size_t>& sharedTable = tables.front();
     const std::size_t reusedPages = sharedTable.size();
     const std::size_t computedPages = 0;
-    const double prefillSeconds = 0.0;
     // 只共享已命中的页，未入页的各通道尾部在本轮独立编码，不改写共享页
     const std::size_t rows = group.size();
     const std::size_t gridLength = group.front().gridLength;
     Tensor context({rows, channels, gridLength}, std::numeric_limits<float>::quiet_NaN());
     for (std::size_t row = 0; row < rows; ++row) {
-        for (std::size_t channel = 0; channel < channels; ++channel) {
-            for (std::size_t i = 0; i < group[row].kept; ++i) {
-                context.values[(row * channels + channel) * gridLength + i] = fp32Sample(
-                    group[row].request.variables[channel],
-                    group[row].begin + i,
-                    "submit"
-                );
-            }
-        }
+        fillContext(group[row], context, row);
     }
     std::vector<double> times;
     if (engine->continuousRope()) {
@@ -554,16 +715,42 @@ void Service::executeShared(
         }
     }
     TimingStats timing;
-    const Tensor quantiles = engine->decodeShared(
-        context,
-        group.front().steps,
-        group.front().request,
-        cache.pool,
-        sharedTable,
-        timing,
-        times,
-        group.front().interval
-    );
+    std::vector<std::size_t> mirrorTable;
+    if (group.front().request.symmetricAveraging) {
+        Tensor mirrored;
+        std::vector<std::uint8_t> observed;
+        std::vector<double> coordinates;
+        buildPrefixInput(group.front(), mirrored, observed, coordinates);
+        for (float& value : mirrored.values) {
+            value = -value;
+        }
+        std::size_t mirrorReused = 0;
+        std::size_t mirrorComputed = 0;
+        fillPrefix(cache, mirrored, observed, coordinates, mirrorTable, mirrorReused, mirrorComputed, timing);
+        // 组内尾部可能不同，镜像也只能广播与正号相同的公共前缀
+        while (mirrorTable.size() > sharedTable.size()) {
+            cache.pool.release(mirrorTable.back());
+            mirrorTable.pop_back();
+        }
+    }
+    Tensor quantiles;
+    try {
+        quantiles = engine->decodeShared(
+            context,
+            group.front().steps + group.front().bufferedSamples,
+            group.front().request,
+            cache.pool,
+            sharedTable,
+            mirrorTable,
+            timing,
+            times,
+            group.front().interval
+        );
+    } catch (...) {
+        releaseTable(cache.pool, mirrorTable);
+        throw;
+    }
+    releaseTable(cache.pool, mirrorTable);
     const double total = secondsSince(start);
     for (std::size_t row = 0; row < rows; ++row) {
         Timestral::Result result;
@@ -572,7 +759,7 @@ void Service::executeShared(
                 group[row],
                 quantiles,
                 row,
-                prefillSeconds,
+                timing.prefillSeconds,
                 timing.decodeSeconds,
                 total
             );
@@ -608,16 +795,18 @@ std::size_t Service::buildPrefixInput(
     std::vector<std::uint8_t>& prefixObserved,
     std::vector<double>& coordinates
 ) const {
+    // 网格末端对齐最后一个已接纳读数，保留当前网格的左填充，不编码暂存尾部
     const std::size_t patch = config.patchSize;
-    const std::size_t fullPatches = queued.kept / patch;
-    const std::size_t prefixLength = fullPatches * patch;
+    const std::size_t prefixLength = roundPatch(queued.kept, patch);
+    const std::size_t fullPatches = prefixLength / patch;
+    const std::size_t padding = prefixLength - queued.kept;
     const std::size_t channels = queued.request.variables.size();
     prefixContext = Tensor({channels, prefixLength}, std::numeric_limits<float>::quiet_NaN());
     prefixObserved.assign(prefixContext.size(), 0);
     for (std::size_t channel = 0; channel < channels; ++channel) {
-        for (std::size_t i = 0; i < prefixLength; ++i) {
+        for (std::size_t i = 0; i < queued.kept; ++i) {
             const float value = fp32Sample(queued.request.variables[channel], queued.begin + i, "submit");
-            const std::size_t index = channel * prefixLength + i;
+            const std::size_t index = channel * prefixLength + padding + i;
             prefixContext.values[index] = value;
             prefixObserved[index] = std::isfinite(value) ? 1 : 0;
         }
@@ -641,6 +830,7 @@ std::size_t Service::buildPrefixInput(
 void Service::executeOne(QueuedRequest& queued) {
     const auto start = std::chrono::steady_clock::now();
     try {
+        releaseViews(queued.request.streamId);
         Timestral::Result result;
         if (!queued.observations.values.empty()) {
             queued.observations.shape.insert(queued.observations.shape.begin(), 1);
@@ -653,6 +843,7 @@ void Service::executeOne(QueuedRequest& queued) {
                 {queued.gridOrigin}
             );
             result = std::move(results.front());
+            result.session = queued.request.session;
             std::lock_guard<std::mutex> lock(streamMutex);
             for (auto& entry : caches) {
                 releaseView(entry.second, queued.request.streamId);
@@ -704,25 +895,16 @@ void Service::executeBatch(std::vector<QueuedRequest>& round) {
             }
         }
         for (std::size_t b = 0; b < batch; ++b) {
+            results[b].session = round[b].request.session;
             round[b].promise.set_value(std::move(results[b]));
         }
         return;
     }
-    const std::size_t kept = round.front().kept;
     const std::size_t gridLength = round.front().gridLength;
     const std::size_t channels = round.front().request.variables.size();
     Tensor context({batch, channels, gridLength}, std::numeric_limits<float>::quiet_NaN());
     for (std::size_t b = 0; b < batch; ++b) {
-        const QueuedRequest& queued = round[b];
-        for (std::size_t channel = 0; channel < channels; ++channel) {
-            for (std::size_t i = 0; i < kept; ++i) {
-                context.values[(b * channels + channel) * gridLength + i] = fp32Sample(
-                    queued.request.variables[channel],
-                    queued.begin + i,
-                    "submit"
-                );
-            }
-        }
+        fillContext(round[b], context, b);
     }
     std::vector<double> times;
     if (engine->continuousRope()) {
@@ -734,7 +916,7 @@ void Service::executeBatch(std::vector<QueuedRequest>& round) {
     const Tensor noCovariates;
     const Tensor quantiles = engine->predict(
         context,
-        round.front().steps,
+        round.front().steps + round.front().bufferedSamples,
         round.front().request,
         noCovariates,
         noCovariates,
@@ -947,6 +1129,13 @@ void Service::releaseView(PrefixCache& cache, const std::string& streamId) {
     cache.views.erase(found);
 }
 
+void Service::releaseViews(const std::string& streamId) {
+    std::lock_guard<std::mutex> lock(streamMutex);
+    for (auto& entry : caches) {
+        releaseView(entry.second, streamId);
+    }
+}
+
 void Service::replaceView(
     PrefixCache& cache,
     const std::string& streamId,
@@ -1013,7 +1202,7 @@ Timestral::Result Service::runFullContext(
     const Tensor noCovariates;
     const Tensor quantiles = engine->predict(
         context,
-        queued.steps,
+        queued.steps + queued.bufferedSamples,
         queued.request,
         noCovariates,
         noCovariates,
@@ -1024,96 +1213,120 @@ Timestral::Result Service::runFullContext(
     return makeResult(queued, quantiles, 0, 0.0, decode, secondsSince(start));
 }
 
+bool Service::fillPrefix(
+    PrefixCache& cache,
+    const Tensor& prefixContext,
+    const std::vector<std::uint8_t>& prefixObserved,
+    const std::vector<double>& coordinates,
+    std::vector<std::size_t>& table,
+    std::size_t& reusedPages,
+    std::size_t& computedPages,
+    TimingStats& timing
+) {
+    const std::size_t channels = prefixContext.shape[0];
+    const std::size_t fullPatches = prefixContext.shape[1] / config.patchSize;
+    // 内容寻址（vLLM prefix caching）：同内容不同来源命中同一批页，引用计数加一，
+    // 页键由父页键与当前patch输入指纹链式得到，不按streamId隔离缓存
+    table.reserve(fullPatches);
+    reusedPages += scanPrefix(cache, prefixContext, prefixObserved, fullPatches, true, table, coordinates);
+    if (table.size() == fullPatches) {
+        return true;
+    }
+    if (!ensureRoom(cache, fullPatches - table.size())) {
+        releaseTable(cache.pool, table);
+        return false;
+    }
+    CacheAppendInput input;
+    input.context = prefixContext;
+    input.observed = prefixObserved;
+    input.coordinates = coordinates;
+    input.groupIds.assign(channels, 0);
+    const std::size_t before = table.size();
+    const std::size_t hitsBefore = cache.pool.hitCount();
+    const auto prefillStart = std::chrono::steady_clock::now();
+    try {
+        engine->appendPages(input, cache.pool, table);
+    } catch (...) {
+        releaseTable(cache.pool, table);
+        throw;
+    }
+    timing.prefillSeconds += secondsSince(prefillStart);
+    for (std::size_t i = before; i < table.size(); ++i) {
+        const CachePage& page = cache.pool.page(table[i]);
+        registerNode(cache, page.key, page.parentKey, page.inputFingerprint, table[i]);
+    }
+    const std::size_t poolHits = cache.pool.hitCount() - hitsBefore;
+    reusedPages += poolHits;
+    computedPages += table.size() - before - poolHits;
+    return true;
+}
+
 Timestral::Result Service::runStreamed(
     QueuedRequest& queued,
     std::chrono::steady_clock::time_point start
 ) {
     const std::size_t channels = queued.request.variables.size();
     PrefixCache& cache = ensurePagePool(channels);
-    const std::size_t patch = config.patchSize;
-    const std::size_t gridLength = roundPatch(queued.kept, patch);
+    const std::size_t gridLength = roundPatch(queued.kept, config.patchSize);
     Tensor context({1, channels, gridLength}, std::numeric_limits<float>::quiet_NaN());
-    for (std::size_t channel = 0; channel < channels; ++channel) {
-        for (std::size_t i = 0; i < queued.kept; ++i) {
-            context.values[channel * gridLength + i] = fp32Sample(
-                queued.request.variables[channel],
-                queued.begin + i,
-                "submit"
-            );
-        }
-    }
+    fillContext(queued, context, 0);
 
     Tensor prefixContext;
     std::vector<std::uint8_t> prefixObserved;
     std::vector<double> coordinates;
     const std::size_t fullPatches = buildPrefixInput(queued, prefixContext, prefixObserved, coordinates);
-
-    // 内容寻址（vLLM prefix caching）：同内容不同来源命中同一批页，引用计数加一，
-    // 页键由父页键与当前patch输入指纹链式得到，不按streamId隔离缓存
     std::vector<std::size_t> table;
-    table.reserve(fullPatches);
-    std::size_t reusedPages = scanPrefix(
-        cache,
-        prefixContext,
-        prefixObserved,
-        fullPatches,
-        true,
-        table,
-        coordinates
-    );
+    std::size_t reusedPages = 0;
     std::size_t computedPages = 0;
     TimingStats timing;
-    if (table.size() < fullPatches) {
-        if (!ensureRoom(cache, fullPatches - table.size())) {
-            // 页池被在跑请求的引用占满时不做抢占，退回全量重算
-            releaseTable(cache.pool, table);
-            return runFullContext(queued, context, start);
+    if (!fillPrefix(cache, prefixContext, prefixObserved, coordinates, table, reusedPages, computedPages, timing)) {
+        // 页池被在跑请求的引用占满时不做抢占，退回全量重算
+        return runFullContext(queued, context, start);
+    }
+    // 镜像pass的取负前缀另有页键，与正号页共用页池，容量不足时只让镜像pass全量重算
+    // Result的页统计只计正号前缀，镜像页是对称平均的内部实现
+    std::vector<std::size_t> mirrorTable;
+    if (queued.request.symmetricAveraging) {
+        Tensor mirrored = prefixContext;
+        for (float& value : mirrored.values) {
+            value = -value;
         }
-        CacheAppendInput input;
-        input.context = prefixContext;
-        input.observed = prefixObserved;
-        input.coordinates = coordinates;
-        input.groupIds.assign(channels, 0);
-        const std::size_t before = table.size();
-        const std::size_t hitsBefore = cache.pool.hitCount();
-        const auto prefillStart = std::chrono::steady_clock::now();
+        std::size_t mirrorReused = 0;
+        std::size_t mirrorComputed = 0;
         try {
-            engine->appendPages(input, cache.pool, table);
+            fillPrefix(cache, mirrored, prefixObserved, coordinates, mirrorTable, mirrorReused, mirrorComputed, timing);
         } catch (...) {
             releaseTable(cache.pool, table);
             throw;
         }
-        timing.prefillSeconds = secondsSince(prefillStart);
-        for (std::size_t i = before; i < table.size(); ++i) {
-            const CachePage& page = cache.pool.page(table[i]);
-            registerNode(cache, page.key, page.parentKey, page.inputFingerprint, table[i]);
-        }
-        const std::size_t appended = table.size() - before;
-        const std::size_t poolHits = cache.pool.hitCount() - hitsBefore;
-        reusedPages += poolHits;
-        computedPages = appended - poolHits;
     }
 
     Tensor quantiles;
     try {
         quantiles = engine->predictStreamed(
             context,
-            queued.steps,
+            queued.steps + queued.bufferedSamples,
             queued.request,
             cache.pool,
             table,
+            mirrorTable,
             timing,
             timeGrid(queued, gridLength),
             queued.interval
         );
     } catch (...) {
         releaseTable(cache.pool, table);
+        releaseTable(cache.pool, mirrorTable);
         throw;
     }
+    // 引擎在上下文截断时已自行释放页表，这里只同步本地视图
     if (table.size() != fullPatches) {
-        // 引擎在上下文截断时已自行释放页表，这里只同步本地视图
         table.clear();
     }
+    if (mirrorTable.size() != fullPatches) {
+        mirrorTable.clear();
+    }
+    table.insert(table.end(), mirrorTable.begin(), mirrorTable.end());
     replaceView(cache, queued.request.streamId, table);
     if (queued.anonymous) {
         // 匿名请求的视图只服务本次执行：完成后归还引用，页键留给LRU回收
@@ -1146,13 +1359,26 @@ Timestral::Result Service::makeResult(
     result.sampleInterval = queued.interval;
     result.origin = queued.request.variables.front().back().time;
     result.levels = quantileLevels(config);
-    result.quantiles = quantileRow(quantiles, batchIndex, queued.steps, result.levels.size());
+    const std::size_t forecastSteps = queued.steps + queued.bufferedSamples;
+    const auto row = quantileRow(quantiles, batchIndex, forecastSteps, result.levels.size());
+    const std::size_t width = queued.steps * result.levels.size();
+    result.quantiles.resize(result.channels * width);
+    for (std::size_t channel = 0; channel < result.channels; ++channel) {
+        // 预测从最后一个完整patch起算，跳过暂存读数所占时间，不错移公开结果的时间轴
+        std::copy_n(
+            row.begin() + (channel * forecastSteps + queued.bufferedSamples) * result.levels.size(),
+            width,
+            result.quantiles.begin() + channel * width
+        );
+    }
+    result.bufferedSamples = queued.bufferedSamples;
     result.observed.assign(elementCount({result.channels, queued.steps}), 0);
     result.prefillSeconds = prefillSeconds;
     result.decodeSeconds = decodeSeconds;
     result.totalSeconds = totalSeconds;
     result.reusedPages = 0;
     result.computedPages = 0;
+    result.session = queued.request.session;
     return result;
 }
 

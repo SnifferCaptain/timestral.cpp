@@ -23,7 +23,7 @@ decode撤销1% MFU验收，改看同任务稳态延迟、显式copy、逻辑数�
 
 ## 使用gpuThreads
 
-配置在[公开Settings](<../timestral/timestral.hpp>)末尾新增，构造时读取，只对Vulkan生效，其它后端忽略，不改变CPU threads行为。配置结构扩展后应重新编译应用和库，权重与Tensor布局未变。
+配置在[公开Settings](<../../timestral/timestral.hpp>)末尾新增，构造时读取，只对Vulkan生效，其它后端忽略，不改变CPU threads行为。配置结构扩展后应重新编译应用和库，权重与Tensor布局未变。
 
 ~~~cpp
 timestral::Timestral::Settings options;
@@ -45,9 +45,9 @@ timestral::Timestral model("model/timestral-5m", options);
 
 ## 调度、索引与ABI
 
-[执行器](<../timestral/vulkan/executor.cpp>)使用Vulkan1.1 dispatchBase，管线带DISPATCH_BASE标志。窗口间有compute/transfer执行依赖，避免后一个本库窗口与前一个重叠；完整行可在预算内合并成矩形，不无条件逐行串行。始终满足windowX乘windowY乘固定localInvocations不超过gpuThreads。
+[执行器](<../../timestral/vulkan/executor.cpp>)使用Vulkan1.1 dispatchBase，管线带DISPATCH_BASE标志。窗口间有compute/transfer执行依赖，避免后一个本库窗口与前一个重叠；完整行可在预算内合并成矩形，不无条件逐行串行。始终满足windowX乘windowY乘固定localInvocations不超过gpuThreads。
 
-不能直接缩小groupCount：展平核依赖gl_NumWorkGroups.x，会算错非零Y的地址。[离线生成器](<../timestral/vulkan/budgetShader.cmake>)从26个计算核生成26个Budget模块，保留对应SSBO/push和浮点运算顺序，通过specialization constant255提供展平宽度。原21个GLSL及其ABI不修改，新增共享前缀、组内注意力及有序精度核，仍为abiVersion=1。[完整manifest](<../timestral/vulkan/shaderManifest.json>)共52模块，预编译/发布目录必须完整更新。
+不能直接缩小groupCount：展平核依赖gl_NumWorkGroups.x，会算错非零Y的地址。[离线生成器](<../../timestral/vulkan/budgetShader.cmake>)从26个计算核生成26个Budget模块，保留对应SSBO/push和浮点运算顺序，通过specialization constant255提供展平宽度。原21个GLSL及其ABI不修改，新增共享前缀、组内注意力及有序精度核，仍为abiVersion=1。[完整manifest](<../../timestral/vulkan/shaderManifest.json>)共52模块，预编译/发布目录必须完整更新。
 
 展平核按既有契约只把NumWorkgroups用作展平步距，运行时由原模块的Builtin标记识别。预算网格规范化为固定W=min(设备X组上限,65535)，末行只派原覆盖范围，部分dispatch不扩张；native GEMM/GEMV/拆分attention保留原二维坐标。每个operator只缓存一个预算管线，不随请求长度累积特化/JIT，也不在录制或在途命令引用期间释放管线。首次使用仍可能有管线JIT开销，固定协议中位数不代表冷JIT首请求。
 

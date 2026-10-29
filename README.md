@@ -1,6 +1,6 @@
 # Timestral C++
 
-[中文](<README_zh.md>) · English · [![linux](<https://github.com/SnifferCaptain/timestral.cpp/actions/workflows/linux.yml/badge.svg?branch=main>)](<https://github.com/SnifferCaptain/timestral.cpp/actions/workflows/linux.yml>)
+[中文](<README_zh.md>) · [Français](<README_fr.md>) · English · [![linux](<https://github.com/SnifferCaptain/timestral.cpp/actions/workflows/linux.yml/badge.svg?branch=main>)](<https://github.com/SnifferCaptain/timestral.cpp/actions/workflows/linux.yml>)
 
 A local C++ inference library for the [Timestral](<https://github.com/mistralai/timestral>) time-series model: give it timestamped numeric series and it returns the median, quantiles and prediction intervals for future steps.
 
@@ -75,7 +75,7 @@ predict returns synchronously, submit returns a future, and the weights load onc
 
 ### KV cache
 
-When channels end at different observations, conditional completion runs in stages without reusing the common history as paged KV. Eligible streaming requests cache one patch per page. For 5M, a page holds 32 points; cachePages defaults to 64 pages per channel count, or 0 to disable caching. A single-variable 16k history needs 512 pages.
+When channels end at different observations, conditional completion runs in stages without reusing the common history as paged KV. Eligible streaming requests cache one patch per page, and the mirrored pass of symmetric averaging keeps its own pages. For 5M, a page holds 32 points; cachePages caps the pages per channel count at 2048 by default and allocates them on demand, or 0 disables caching. Each Result names a session: put only the new samples in a Request with session set, and the library appends them to the stored history. Synchronized sessions use all new samples while the retained history is at most 512 points, allowing a new prefill; fullPrefillThreshold adjusts this limit, and 0 always fixes the boundaries. Beyond the limit, patch boundaries stay anchored at the last fully accepted history, and an incomplete trailing patch is buffered until complete. Result.bufferedSamples reports the pending sample count; the returned window still starts just after the latest sample. Exceeding the context limit still triggers recomputation with a whole-patch sliding window.
 
 ## Performance
 
@@ -85,7 +85,7 @@ Timestral-5M, median of 3 runs, with symmetric averaging and non-negative clippi
 
 ![32k prefill and 16k-context-to-1k ar/par decode time per backend](<assets/backend-compare-1k-20261026.png>)
 
-Raw data and recipes are in the [measurement notes](<doc/benchmark.md>).
+Raw data and recipes are in the [measurement notes](<doc/zh/benchmark.md>).
 
 ### Prefill time
 
@@ -101,7 +101,7 @@ Single variable, in milliseconds.
 | 16k | 1954.58 | 1086.64 | 889.81 | 784.45 | 819.54 | 152.42 | 112.14 | 73.33 | 229.22 | 146.71 | 154.96 | 153.84 | 60.03 | 45.15 | 435.50 | 76.36 |
 | 32k | 5035.31 | 3284.99 | 3066.65 | 2906.21 | 2580.37 | 488.94 | 354.55 | 224.23 | 706.29 | 499.09 | 529.33 | 501.28 | 168.30 | 138.33 | 1672.28 | 229.07 |
 
-[2/4/8-variable results](<doc/benchmark.md#多变量prefill>).
+[2/4/8-variable results](<doc/zh/benchmark.md#多变量prefill>).
 
 ### Sliding window
 
@@ -111,19 +111,19 @@ A two-channel signal advances to 128k, forecasting 512 points each time. The fro
 
 ### Short forecasts and decode block size
 
-Pooled 4k forecasts on six functions; 54 points exceed the numerical comparison budget. [Data and measurement details](<doc/benchmark.md#短预测精度与块大小>)
+Pooled 4k forecasts on six functions; 54 points exceed the numerical comparison budget. [Data and measurement details](<doc/zh/benchmark.md#短预测精度与块大小>)
 
 ![Pooled RMSE and 4k decode time](<assets/block-ar-4k-summary-20261026.png>)
 
 ## Backends and configuration
 
-reference is the default and needs only the standard library. The built-in BLAS also links no external library and picks AVX2, SSE4.2 or scalar kernels at run time on x86, while ARM and RISC-V switch to Eigen when BLAS is selected. Eigen and ytensor use the optional dependencies in the repository, and ytensor needs C++20 and AVX2/FMA. Vulkan needs headers, a loader and a compute driver; shaders can be compiled or supplied as a complete precompiled set. See the [Vulkan guide](<doc/vulkan.md>). Optional backends are mutually exclusive.
+With no backend selected, x86 builds the built-in BLAS, which links no external library and picks AVX2, SSE4.2 or scalar kernels at run time. Other targets default to reference, which needs only the standard library, and ARM and RISC-V switch to Eigen when BLAS is selected; TIMESTRAL_USE_REFERENCE forces reference. Eigen and ytensor use the optional dependencies in the repository, and ytensor needs C++20 and AVX2/FMA. Vulkan needs headers, a loader and a compute driver; shaders can be compiled or supplied as a complete precompiled set. See the [Vulkan guide](<doc/zh/vulkan.md>). Optional backends are mutually exclusive.
 
 ~~~bash
 cmake -S . -B build-blas -DCMAKE_BUILD_TYPE=Release -DTIMESTRAL_USE_BLAS=ON
 ~~~
 
-The other switches are TIMESTRAL_USE_EIGEN, TIMESTRAL_USE_YTENSOR and TIMESTRAL_USE_VULKAN, and TIMESTRAL_BLAS_DECODE selects FP16, BF16 or INT8 for the BLAS backend. [Settings](<timestral/timestral.hpp#L38-L55>) are fixed at construction: threads 1, patchBatch 16 and cachePages 64 by default.
+The other switches are TIMESTRAL_USE_EIGEN, TIMESTRAL_USE_YTENSOR and TIMESTRAL_USE_VULKAN, and TIMESTRAL_BLAS_DECODE selects FP16, BF16 or INT8 for the BLAS backend. [Settings](<timestral/timestral.hpp#L40-L57>) are fixed at construction: threads 1, patchBatch 16 and cachePages 2048 by default. attentionMask adds a visibility predicate over time-axis patch tokens; reference and BLAS run it natively, while Eigen, ytensor and Vulkan switch to reference and run much slower.
 
 ## Support
 
@@ -146,7 +146,7 @@ The other switches are TIMESTRAL_USE_EIGEN, TIMESTRAL_USE_YTENSOR and TIMESTRAL_
 2. The portability enumeration and subset support that MoltenVK needs is not implemented.
 3. The built-in BLAS has x86 kernels only, and ytensor requires x86 AVX2+FMA.
 
-Linux build issues were addressed from an audit report, but the GCC/Clang CI has not run; ARM and RISC-V have no hardware acceptance. ytensor is measured on Windows, but parallelDecodeReal still exceeds the frozen numerical budget; see the [compatibility notes](<doc/linuxCompatibility.md>). The real 5M has been checked layer by layer and on forecasts, while 28M, 123M and 209M were only checked against their config and weight contract.
+Linux build issues were addressed from an audit report, but the GCC/Clang CI has not run; ARM and RISC-V have no hardware acceptance. ytensor is measured on Windows, but parallelDecodeReal still exceeds the frozen numerical budget; see the [compatibility notes](<doc/zh/linuxCompatibility.md>). The real 5M has been checked layer by layer and on forecasts, while 28M, 123M and 209M were only checked against their config and weight contract.
 
 ### Vulkan devices
 
@@ -155,12 +155,12 @@ Linux build issues were addressed from an audit report, but the GCC/Clang CI has
 | Windows x86-64 | AMD RDNA 2 | ✅✅ | Usual 5M model, paged and shared prefixes, base operators, dedicated GLSL optimization. The 8-variable stress test still fails |
 | Windows x86-64 | NVIDIA Ada (SM 8.9) | ✅✅ | Usual model, operators and dedicated optimization. A long-query budget failure is known |
 | Windows, GNU/Linux | Intel Xe integrated graphics | ⚠ | Generic capability and subgroup handling in place, no hardware results. 🗓️ Target hardware acceptance |
-| GNU/Linux | Software Vulkan, AMD, NVIDIA | ⚠ | Only an early small software-ICD smoke test. Current CI has not run |
+| GNU/Linux | Software Vulkan, AMD, NVIDIA | ⚠ | Only an early small software-ICD smoke test. CI verifies builds and links, not inference runs |
 
-RDNA 2 and Ada were each tested on one device only (Radeon 680M, RTX 4060 Laptop). Vulkan is the only GPU backend; see [GPU backend scope](<doc/gpuScope.md>).
+RDNA 2 and Ada were each tested on one device only (Radeon 680M, RTX 4060 Laptop). Vulkan is the only GPU backend; see [GPU backend scope](<doc/zh/gpuScope.md>).
 
 ## Documentation and license
 
-The interface is documented in the [API reference](<doc/api.md>), inference details are in the [inference notes](<doc/inference.md>), backend selection in [compute backends](<doc/backends.md>), other guides in the [documentation index](<doc/README.md>), and command-line options in the [example notes](<example/README.md>).
+The interface is documented in the [API reference](<doc/zh/api.md>), inference details are in the [inference notes](<doc/zh/inference.md>), backend selection in [compute backends](<doc/zh/backends.md>), other guides in the [documentation index](<doc/README.md>), changes in the [changelog](<doc/en/changelog.md>), and command-line options in the [example notes](<example/README.md>).
 
 The ported Timestral parts derive from the upstream Apache-2.0 project, with sources in the [third-party notes](<THIRD_PARTY.md>). This repository is licensed under [MIT](<LICENSE>); the released weights use a separate Modified MIT license and are not distributed here.

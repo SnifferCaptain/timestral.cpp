@@ -130,6 +130,28 @@ public:
         throw std::runtime_error("backend does not support frozen-prefix experiments");
     }
 
+    // 实验接口，attention sink验证用，不是默认缓存路径：页表首位允许一个位置与当前
+    // 网格不对齐的远端历史页（sink），其余页仍须与网格一致；淘汰由调用方管理，
+    // 不得淘汰首位页。契约与appendPages/predictFrozen相同，不支持的后端抛异常
+    virtual void appendPagesSink(
+        const CacheAppendInput&,
+        PagePool&,
+        std::vector<std::size_t>&
+    ) const {
+        throw std::runtime_error("backend does not support sink-prefix experiments");
+    }
+
+    // 实验接口，attention sink验证用：冻结含sink首位页的页表后重算条件尾部，
+    // input.context须比table多覆盖首位页占用的网格槽，契约见predictFrozen
+    virtual Tensor predictFrozenSink(
+        const ForwardInput&,
+        PagePool&,
+        const std::vector<std::size_t>&,
+        double
+    ) const {
+        throw std::runtime_error("backend does not support sink-prefix experiments");
+    }
+
     // @brief 把context中尚未入页的整patch编码进页池
     // @param input 前缀输入，context为(R,T)，网格左对齐
     // @param pool 页池，几何必须与模型一致

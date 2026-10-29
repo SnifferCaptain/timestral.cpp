@@ -213,6 +213,10 @@ Transformer::Transformer(ModelConfig loadedConfig, utils::Safetensors weights)
     }
 }
 
+void Transformer::setTimeMask(std::function<bool(std::size_t, std::size_t)> mask) {
+    timeMask = std::move(mask);
+}
+
 const ModelConfig& Transformer::config() const {
     return modelConfig;
 }
@@ -435,7 +439,17 @@ Tensor Transformer::predictFrozen(
     double positionOffset
 ) const {
     ModelTrace trace;
-    return forwardQuantiles(input, true, false, trace, pool, table, positionOffset);
+    return forwardQuantiles(input, true, false, trace, pool, table, positionOffset, false);
+}
+
+Tensor Transformer::predictFrozenSink(
+    const ForwardInput& input,
+    PagePool& pool,
+    const std::vector<std::size_t>& table,
+    double positionOffset
+) const {
+    ModelTrace trace;
+    return forwardQuantiles(input, true, false, trace, pool, table, positionOffset, true);
 }
 
 Tensor Transformer::forwardQuantiles(
@@ -446,7 +460,7 @@ Tensor Transformer::forwardQuantiles(
 ) const {
     PagePool pool;
     const std::vector<std::size_t> table;
-    return forwardQuantiles(input, denormalize, recordTrace, trace, pool, table, 0.0);
+    return forwardQuantiles(input, denormalize, recordTrace, trace, pool, table, 0.0, false);
 }
 
 Tensor Transformer::forwardQuantiles(
@@ -456,7 +470,8 @@ Tensor Transformer::forwardQuantiles(
     ModelTrace& trace,
     PagePool& pool,
     const std::vector<std::size_t>& table,
-    double positionOffset
+    double positionOffset,
+    bool sinkPrefix
 ) const {
     const auto& config = modelConfig;
     const Tensor& context = input.context;
@@ -568,7 +583,8 @@ Tensor Transformer::forwardQuantiles(
     }
     const std::size_t modelDim = config.modelDim;
     const std::size_t base = table.size();
-    if (base > contextPatches || !std::isfinite(positionOffset) || positionOffset < 0.0) {
+    if (base > contextPatches + (sinkPrefix ? 1 : 0)
+        || !std::isfinite(positionOffset) || positionOffset < 0.0) {
         throw std::invalid_argument("invalid frozen prefix or position offset");
     }
     if (base > 0) {
@@ -645,7 +661,8 @@ Tensor Transformer::forwardQuantiles(
             groupIds,
             first,
             input.coordinates,
-            positionOffset
+            positionOffset,
+            sinkPrefix ? 1 : 0
         );
     }
     const std::vector<std::size_t> newPages(activeSlots, pool.capacity());
@@ -738,7 +755,7 @@ void Transformer::runLayers(
     std::vector<float> valueBuffer(keyBuffer.size(), 0.0f);
     std::vector<float> prefixKeys(prefixView ? prefixRows * base * modelDim : 0, 0.0f);
     std::vector<float> prefixValues(prefixKeys.size(), 0.0f);
-    const auto timeAllowed = [&](std::size_t row, std::size_t q, std::size_t k) {
+    const auto nativeAllowed = [&](std::size_t row, std::size_t q, std::size_t k) {
         if (q < encoded) {
             return k < encoded && (q == k || (keyValid[row * encoded + k] != 0
                 && ((covariates && roles[row] == 2) || k <= q)));
@@ -750,6 +767,13 @@ void Transformer::runLayers(
         const std::size_t qDec = q - encoded;
         const std::size_t kDec = k - encoded;
         return q == k || (kDec <= qDec && (!covariates || (qDec >= contextPatches && kDec >= contextPatches)));
+    };
+    // 附加谓词按patch时间下标判断：无协变量时槽号即下标，双流解码槽与编码槽共用下标
+    const auto patchIndex = [&](std::size_t slot) {
+        return covariates && slot >= encoded ? slot - encoded : slot;
+    };
+    const auto timeAllowed = [&](std::size_t row, std::size_t q, std::size_t k) {
+        return nativeAllowed(row, q, k) && (q == k || !timeMask || timeMask(patchIndex(q), patchIndex(k)));
     };
     // 每行keyValid前缀和，几何分类据此O(1)判定一段编码键是否全部有效
     std::vector<std::size_t> validPrefix(rowCount * (encoded + 1), 0);
@@ -900,7 +924,7 @@ void Transformer::runLayers(
                         }
                         // 无协变量时按timeAllowed逐支证明Full，其余情形逐元素核对
                         // 编码query读不晚于自身的有效编码键，解码query读有效历史编码键与不晚于自身的解码键
-                        if (!covariates) {
+                        if (!covariates && !timeMask) {
                             if (queryLast < encoded && keyLast < encoded && keyLast <= queryFirst
                                 && allValid(row, keyBegin, keyLast)) {
                                 return MaskTile::Full;
@@ -1004,6 +1028,23 @@ void Transformer::appendPages(
     PagePool& pool,
     std::vector<std::size_t>& table
 ) const {
+    appendPagesImpl(input, pool, table, false);
+}
+
+void Transformer::appendPagesSink(
+    const CacheAppendInput& input,
+    PagePool& pool,
+    std::vector<std::size_t>& table
+) const {
+    appendPagesImpl(input, pool, table, true);
+}
+
+void Transformer::appendPagesImpl(
+    const CacheAppendInput& input,
+    PagePool& pool,
+    std::vector<std::size_t>& table,
+    bool sinkPrefix
+) const {
     const auto& config = modelConfig;
     if (!std::isfinite(input.positionOffset) || input.positionOffset < 0.0) {
         throw std::invalid_argument("invalid rolling position offset");
@@ -1039,7 +1080,17 @@ void Transformer::appendPages(
             }
         }
     }
-    verifyTableGrid(pool, table, rowCount, keyValid, input.groupIds, first, input.coordinates, input.positionOffset);
+    verifyTableGrid(
+        pool,
+        table,
+        rowCount,
+        keyValid,
+        input.groupIds,
+        first,
+        input.coordinates,
+        input.positionOffset,
+        sinkPrefix ? 1 : 0
+    );
     std::vector<PageScaleState> running(rowCount, PageScaleState{});
     if (!table.empty()) {
         running = pool.page(table.back()).scaleStates;

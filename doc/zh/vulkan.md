@@ -21,7 +21,7 @@ cmake --build build-gpu-vulkan --config Release --parallel
 ctest --test-dir build-gpu-vulkan -C Release --output-on-failure
 ~~~
 
-通用运行配置见[运行期配置](<../timestral/utils/gpuSettings.hpp>)，Vulkan模型另提供优化回退开关：
+通用运行配置见[运行期配置](<../../timestral/utils/gpuSettings.hpp>)，Vulkan模型另提供优化回退开关：
 
 | 变量 | 默认 | 说明 |
 | --- | --- | --- |
@@ -35,7 +35,7 @@ ctest --test-dir build-gpu-vulkan -C Release --output-on-failure
 
 ## GPU并行预算
 
-[公开Settings](<../timestral/timestral.hpp>)新增gpuThreads，0不限制本库派发，非0须为256倍数/u32范围，只对Vulkan生效。它限制每个串行dispatch窗口的逻辑invocations，不是物理EU/CU、标称768通道或GPU利用率百分比；很小预算可能明显变慢。固定local_size不随用户值改变，非法倍数在创建GPU对象前拒绝，预算256不选择512线程可选管线。
+[公开Settings](<../../timestral/timestral.hpp>)新增gpuThreads，0不限制本库派发，非0须为256倍数/u32范围，只对Vulkan生效。它限制每个串行dispatch窗口的逻辑invocations，不是物理EU/CU、标称768通道或GPU利用率百分比；很小预算可能明显变慢。固定local_size不随用户值改变，非法倍数在创建GPU对象前拒绝，预算256不选择512线程可选管线。
 
 ~~~cpp
 timestral::Timestral::Settings options;
@@ -47,51 +47,51 @@ timestral::Timestral model("model/timestral-5m", options);
 
 ## 算子库与ABI
 
-[源目录](<../timestral/vulkan/shaders/>)包含26个计算核及共享精确数学辅助，离线生成各自Budget变体，完整包共52模块。原21核的绑定、push和localSize不变，新增5核为共享前缀、组内注意力和有序精度路径。Budget变体保持对应原核ABI。subgroup快核只在报告size32/64且能力满足时创建，不强加给Intel8/16。
+[源目录](<../../timestral/vulkan/shaders/>)包含26个计算核及共享精确数学辅助，离线生成各自Budget变体，完整包共52模块。原21核的绑定、push和localSize不变，新增5核为共享前缀、组内注意力和有序精度路径。Budget变体保持对应原核ABI。subgroup快核只在报告size32/64且能力满足时创建，不强加给Intel8/16。
 
 | 算子 | 计算 | 工作组 | push |
 | --- | --- | --- | --- |
-| [gemm](<../timestral/vulkan/shaders/gemm.comp>) | A[M,K]乘W[N,K]转置，可选bias | 16×16共享K分块 | 16字节 |
-| [rmsNorm](<../timestral/vulkan/shaders/rmsNorm.comp>) | 每行平方和归约，(x*inverse)*scale | 每行64线程 | 12字节 |
-| [softmax](<../timestral/vulkan/shaders/softmax.comp>) | 每行最大值与指数和归约，负无穷屏蔽 | 每行64线程 | 8字节 |
-| [silu](<../timestral/vulkan/shaders/silu.comp>) | x/(1+exp(-x)) | 64线程，尾部检查 | 4字节 |
-| [prepareQkv](<../timestral/vulkan/shaders/prepareQkv.comp>) | 融合QKV按头重排加partial RoPE | 64线程 | 20字节 |
-| [mergeKv](<../timestral/vulkan/shaders/mergeKv.comp>) | 前缀K/V与新增K/V按行拼接 | 64线程 | 16字节 |
-| [elementwise](<../timestral/vulkan/shaders/elementwise.comp>) | 残差加、sigmoid门控、SwiGLU三模式 | 64线程 | 12字节 |
-| [attentionScores](<../timestral/vulkan/shaders/attentionScores.comp>) | 双流掩码QK分数与在线softmax | 64线程 | 36字节 |
-| [attentionValues](<../timestral/vulkan/shaders/attentionValues.comp>) | 掩码PV归约 | 64线程 | 36字节 |
-| [attentionFused](<../timestral/vulkan/shaders/attentionFused.comp>) | 分数与PV同一workgroup内完成，跨warp共享归约 | 64线程 | 36字节 |
-| [gemmTile](<../timestral/vulkan/shaders/gemmTile.comp>) | 32×32输出tile、2×2寄存器分块、合并W加载、逐K precise | 16×16线程，4160B共享 | 16字节 |
-| [attentionTile](<../timestral/vulkan/shaders/attentionTile.comp>) | time轴8-query共享K/V，64键在线softmax | 64×8线程，39168B共享，设备不满足时回退v1 | 36字节 |
-| [attentionRegister](<../timestral/vulkan/shaders/attentionRegister.comp>) | headDim64寄存器PV，仅诊断 | 64线程 | 36字节 |
-| [gemv](<../timestral/vulkan/shaders/gemv.comp>) | 窄M逐K精确投影，按K合并权重加载 | 64线程，16列/组 | 16字节 |
-| [attentionCausal](<../timestral/vulkan/shaders/attentionCausal.comp>) | 仅裁剪可证明全空的编码未来键块 | 64×8，39168B共享 | 36字节 |
-| [attentionSubgroup](<../timestral/vulkan/shaders/attentionSubgroup.comp>) | 带query对齐检查和原归约回退的subgroup注意力 | 64×8，39300B共享，Basic/Vote/Arithmetic | 36字节 |
-| [attentionDecode](<../timestral/vulkan/shaders/attentionDecode.comp>) | H1长KV按128键分片，保存max/分母/PV | 64线程，17408B共享 | 40字节 |
-| [attentionDecodeMerge](<../timestral/vulkan/shaders/attentionDecodeMerge.comp>) | 稳定合并分片，不平均局部归一化结果 | 64线程 | 12字节 |
-| [siluGrid](<../timestral/vulkan/shaders/siluGrid.comp>) | 支持二维grid展开的SiLU，供残差融合 | 64线程 | 4字节 |
-| [gemmWide](<../timestral/vulkan/shaders/gemmWide.comp>) | 64×64输出、4×4寄存器，仅诊断 | 16×16，8256B共享 | 16字节 |
-| [attentionPacked](<../timestral/vulkan/shaders/attentionPacked.comp>) | 四score/四PV寄存器候选，仅诊断 | 16×8，37632B共享 | 36字节 |
+| [gemm](<../../timestral/vulkan/shaders/gemm.comp>) | A[M,K]乘W[N,K]转置，可选bias | 16×16共享K分块 | 16字节 |
+| [rmsNorm](<../../timestral/vulkan/shaders/rmsNorm.comp>) | 每行平方和归约，(x*inverse)*scale | 每行64线程 | 12字节 |
+| [softmax](<../../timestral/vulkan/shaders/softmax.comp>) | 每行最大值与指数和归约，负无穷屏蔽 | 每行64线程 | 8字节 |
+| [silu](<../../timestral/vulkan/shaders/silu.comp>) | x/(1+exp(-x)) | 64线程，尾部检查 | 4字节 |
+| [prepareQkv](<../../timestral/vulkan/shaders/prepareQkv.comp>) | 融合QKV按头重排加partial RoPE | 64线程 | 20字节 |
+| [mergeKv](<../../timestral/vulkan/shaders/mergeKv.comp>) | 前缀K/V与新增K/V按行拼接 | 64线程 | 16字节 |
+| [elementwise](<../../timestral/vulkan/shaders/elementwise.comp>) | 残差加、sigmoid门控、SwiGLU三模式 | 64线程 | 12字节 |
+| [attentionScores](<../../timestral/vulkan/shaders/attentionScores.comp>) | 双流掩码QK分数与在线softmax | 64线程 | 36字节 |
+| [attentionValues](<../../timestral/vulkan/shaders/attentionValues.comp>) | 掩码PV归约 | 64线程 | 36字节 |
+| [attentionFused](<../../timestral/vulkan/shaders/attentionFused.comp>) | 分数与PV同一workgroup内完成，跨warp共享归约 | 64线程 | 36字节 |
+| [gemmTile](<../../timestral/vulkan/shaders/gemmTile.comp>) | 32×32输出tile、2×2寄存器分块、合并W加载、逐K precise | 16×16线程，4160B共享 | 16字节 |
+| [attentionTile](<../../timestral/vulkan/shaders/attentionTile.comp>) | time轴8-query共享K/V，64键在线softmax | 64×8线程，39168B共享，设备不满足时回退v1 | 36字节 |
+| [attentionRegister](<../../timestral/vulkan/shaders/attentionRegister.comp>) | headDim64寄存器PV，仅诊断 | 64线程 | 36字节 |
+| [gemv](<../../timestral/vulkan/shaders/gemv.comp>) | 窄M逐K精确投影，按K合并权重加载 | 64线程，16列/组 | 16字节 |
+| [attentionCausal](<../../timestral/vulkan/shaders/attentionCausal.comp>) | 仅裁剪可证明全空的编码未来键块 | 64×8，39168B共享 | 36字节 |
+| [attentionSubgroup](<../../timestral/vulkan/shaders/attentionSubgroup.comp>) | 带query对齐检查和原归约回退的subgroup注意力 | 64×8，39300B共享，Basic/Vote/Arithmetic | 36字节 |
+| [attentionDecode](<../../timestral/vulkan/shaders/attentionDecode.comp>) | H1长KV按128键分片，保存max/分母/PV | 64线程，17408B共享 | 40字节 |
+| [attentionDecodeMerge](<../../timestral/vulkan/shaders/attentionDecodeMerge.comp>) | 稳定合并分片，不平均局部归一化结果 | 64线程 | 12字节 |
+| [siluGrid](<../../timestral/vulkan/shaders/siluGrid.comp>) | 支持二维grid展开的SiLU，供残差融合 | 64线程 | 4字节 |
+| [gemmWide](<../../timestral/vulkan/shaders/gemmWide.comp>) | 64×64输出、4×4寄存器，仅诊断 | 16×16，8256B共享 | 16字节 |
+| [attentionPacked](<../../timestral/vulkan/shaders/attentionPacked.comp>) | 四score/四PV寄存器候选，仅诊断 | 16×8，37632B共享 | 36字节 |
 
-[shaderManifest.json](<../timestral/vulkan/shaderManifest.json>)是abiVersion=1的机器可读ABI：目标环境vulkan1.1、入口main/GLCompute、每个shader的localSize、binding序号与访问方向、push常量成员名、类型与偏移、最低设备限制和二维dispatch规则。常驻大网格线性kernel按x=min(G,65535)、y=ceil(G/x)展开，元素下标先展平y，GEMM用原生二维网格。旧silu验证核只看X，大网格常驻路径使用siluGrid，不把旧核直接改成二维派发。
+[shaderManifest.json](<../../timestral/vulkan/shaderManifest.json>)是abiVersion=1的机器可读ABI：目标环境vulkan1.1、入口main/GLCompute、每个shader的localSize、binding序号与访问方向、push常量成员名、类型与偏移、最低设备限制和二维dispatch规则。常驻大网格线性kernel按x=min(G,65535)、y=ceil(G/x)展开，元素下标先展平y，GEMM用原生二维网格。旧silu验证核只看X，大网格常驻路径使用siluGrid，不把旧核直接改成二维派发。
 
 本机SDK1.3.283的glslc把SPIR-V 1.3的版本字写成0x00010300，同SDK的spirv-dis解析为1.3、spirv-val通过。构建期AUTO优先glslc，缺失时使用glslangValidator（或glslang）；前者用--target-env=vulkan1.1，后者用-V --target-env vulkan1.1。自动探测结果不强写回用户覆盖项，能找到spirv-val时按同目标环境校验二进制，推理进程不编译GLSL。
 
-[ABI反射测试](<../tests/vulkanShaderAbiTest.cpp>)解析编译产物而不依赖GPU：入口点唯一且为main/GLCompute、LocalSize与manifest一致、storage buffer的descriptor set与binding集合精确相等、push结构成员偏移/类型/总长一致，并拒绝坏magic、指令内部截断、零wordCount与越界wordCount四类损坏模块。它把manifest与spv的漂移变成构建期失败，不再依赖运行时静默错配。
+[ABI反射测试](<../../tests/vulkanShaderAbiTest.cpp>)解析编译产物而不依赖GPU：入口点唯一且为main/GLCompute、LocalSize与manifest一致、storage buffer的descriptor set与binding集合精确相等、push结构成员偏移/类型/总长一致，并拒绝坏magic、指令内部截断、零wordCount与越界wordCount四类损坏模块。它把manifest与spv的漂移变成构建期失败，不再依赖运行时静默错配。
 
 ## 常驻执行器
 
-[GpuExecutor](<../timestral/utils/gpuExecutor.hpp>)是后端无关的执行契约：begin、upload（可标记persistent）、allocate、dispatch、download、end。[Vulkan执行器](<../timestral/vulkan/executor.cpp>)的实现：
+[GpuExecutor](<../../timestral/utils/gpuExecutor.hpp>)是后端无关的执行契约：begin、upload（可标记persistent）、allocate、dispatch、download、end。[Vulkan执行器](<../../timestral/vulkan/executor.cpp>)的实现：
 
 - 权重在模型构造时一次上传为persistent，staging用host-visible coherent缓冲，staging与device工作区各有一个高水位复用池
 - 一次runLayers的整段层图录入primary command buffer，每次dispatch前插入可见性barrier，在首个回读处提交；后续K/V页回读仍串行提交/等待，没有实现集中回读
 - 批内句柄在end时失效，跨批使用会抛out_of_range，不能复用上一批的scratch地址
 
-异常语义：submit在fence创建、queue.submit或等待失败时把本批标记poisoned并保留全部资源，end()用device waitIdle排空后释放，之后的begin()明确拒绝而不是带病重入。[GpuTransformer](<../timestral/utils/gpuTransformer.cpp>)的清理助手只在已有异常传播时调用end()，清理失败不覆盖最初的设备错误。这条语义修掉了一次审查发现的错误掩盖：旧路径在submit抛错后仍会对未结束的command buffer再次end，把原始错误吞掉并把后续批次卡死。
+异常语义：submit在fence创建、queue.submit或等待失败时把本批标记poisoned并保留全部资源，end()用device waitIdle排空后释放，之后的begin()明确拒绝而不是带病重入。[GpuTransformer](<../../timestral/utils/gpuTransformer.cpp>)的清理助手只在已有异常传播时调用end()，清理失败不覆盖最初的设备错误。这条语义修掉了一次审查发现的错误掩盖：旧路径在submit抛错后仍会对未结束的command buffer再次end，把原始错误吞掉并把后续批次卡死。
 
 ## 模型后端
 
-[GpuTransformer](<../timestral/utils/gpuTransformer.hpp>)继承Transformer，覆写层图和数值钩子。残差块设备常驻改为显式实验，默认三投影间仍经过CPU；后处理、调度、页管理仍在host。沿用time/variate双流谓词，RoPE由host按reference相同libm预计算，只精确复用本调用inverse频率和完全相同的位置行。纯KV prefill最后time K/V就绪后停止，但完整forward、trace、decode不截断。前缀K/V仍从CPU页池装配/上传，经mergeKv拼接，没有设备KV镜像。
+[GpuTransformer](<../../timestral/utils/gpuTransformer.hpp>)继承Transformer，覆写层图和数值钩子。残差块设备常驻改为显式实验，默认三投影间仍经过CPU；后处理、调度、页管理仍在host。沿用time/variate双流谓词，RoPE由host按reference相同libm预计算，只精确复用本调用inverse频率和完全相同的位置行。纯KV prefill最后time K/V就绪后停止，但完整forward、trace、decode不截断。前缀K/V仍从CPU页池装配/上传，经mergeKv拼接，没有设备KV镜像。
 
 测试矩阵：
 
@@ -156,4 +156,4 @@ vulkanProfile归因工具（本地工具，不入库）仅在TIMESTRAL_USE_VULKA
 cmake --install build-gpu-vulkan --config Release --component VulkanShaders --prefix .agents/data/vulkan-package
 ~~~
 
-安装组件把26个普通与26个Budget共52个spv、[shaderManifest.json](<../timestral/vulkan/shaderManifest.json>)与[gpuKernels.md](<../timestral/utils/gpuKernels.md>)放入share/timestral/vulkan。TIMESTRAL_VULKAN_SPV_DIR指向该目录即可离线构建，不寻找glslc或glslangValidator。显式选择工具可设置TIMESTRAL_VULKAN_SHADER_COMPILER路径与TIMESTRAL_VULKAN_SHADER_COMPILER_KIND=AUTO/GLSLC/GLSLANGVALIDATOR。预编译输入必须是可信、已验证且descriptor与push布局匹配的文件，运行时只做基本SPIR-V头检查，不负责证明任意外部shader安全。
+安装组件把26个普通与26个Budget共52个spv、[shaderManifest.json](<../../timestral/vulkan/shaderManifest.json>)与[gpuKernels.md](<../../timestral/utils/gpuKernels.md>)放入share/timestral/vulkan。TIMESTRAL_VULKAN_SPV_DIR指向该目录即可离线构建，不寻找glslc或glslangValidator。显式选择工具可设置TIMESTRAL_VULKAN_SHADER_COMPILER路径与TIMESTRAL_VULKAN_SHADER_COMPILER_KIND=AUTO/GLSLC/GLSLANGVALIDATOR。预编译输入必须是可信、已验证且descriptor与push布局匹配的文件，运行时只做基本SPIR-V头检查，不负责证明任意外部shader安全。

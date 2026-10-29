@@ -57,7 +57,7 @@
 - A4 count1、time/headDim64、键数至少512时按128键split，每片输出max/分母/未归一化PV，再稳定合并，空split不会产生NaN。通过尾片、缺失、角色、多行及H1长前缀模型对照，但不据此声称整个decode已达到BLAS或30GF/s
 - F1残差块设备常驻只默认用于128≤M≤2048。hidden投影、SiLU、output与skip投影及相加放在同batch，只回读最终值；小head没有净收益，大M方向不稳定，所以回退原三投影。开关TIMESTRAL_VULKAN_RESIDENT_RESIDUAL=0仅关闭此叶子，1也遵守形状护栏，非法值拒绝
 - Rotary只复用本调用的inverse频率和完全相同position行，未增加跨请求shape缓存，连续坐标仍按原std::cos/sin计算
-- [gemmWide](<../timestral/vulkan/shaders/gemmWide.comp>)只留显式诊断：N576/1024仅约5%微基准改善，M128及K512退化，不自动选用。[attentionPacked](<../timestral/vulkan/shaders/attentionPacked.comp>)128线程候选正确但慢于subgroup，不自动选用。[寄存器PV](<../timestral/vulkan/shaders/attentionRegister.comp>)仍仅诊断
+- [gemmWide](<../../timestral/vulkan/shaders/gemmWide.comp>)只留显式诊断：N576/1024仅约5%微基准改善，M128及K512退化，不自动选用。[attentionPacked](<../../timestral/vulkan/shaders/attentionPacked.comp>)128线程候选正确但慢于subgroup，不自动选用。[寄存器PV](<../../timestral/vulkan/shaders/attentionRegister.comp>)仍仅诊断
 
 `同进程注意力对照`的time1024中位：v1 12.37ms、A2 4.00ms、causal2.47ms、subgroup2.04ms、packed3.72ms，含录制/提交/fence、不含传输，不当作device-only。F1单变量独立A/B由46.81/46.90ms降至40.55/41.05ms（`R1及显式诊断有效段`），但四通道两对结果方向相反，完整数据保留在`首对`与`唯一反序复核`，不取169ms当稳定收益。
 
@@ -69,7 +69,7 @@
 
 显式关闭OpenMP、Eigen、ytensor、BLAS、Vulkan的纯标准库构建，实际24/24通过（82.56秒），不是复制历史25/25。reference/BLAS保留原residual默认实现，只有内部虚拟数值钩子扩展。
 
-8通道公开forward/predictBlock的既有输出预算通过，但新增严格逐层诊断尚未通过。关闭所有新选核后仍在同一layer6/index7459失败；逐项RMS的候选也未解决，已撤下。保留[测试](<../tests/gpuModelTest.cpp>)的--strict-multi开关重现，不把默认8行输出测试写成8行逐层全部达标。该精度边界仍待定位，不放宽阈值。
+8通道公开forward/predictBlock的既有输出预算通过，但新增严格逐层诊断尚未通过。关闭所有新选核后仍在同一layer6/index7459失败；逐项RMS的候选也未解决，已撤下。保留[测试](<../../tests/gpuModelTest.cpp>)的--strict-multi开关重现，不把默认8行输出测试写成8行逐层全部达标。该精度边界仍待定位，不放宽阈值。
 
 ### 剩余主线
 
@@ -202,9 +202,9 @@ backendCompare（本地工具，不入库）的checksum是首输出值，不是�
 
 代码能确认的成本与仍需测量的假设：
 
-- [Executor](<../timestral/vulkan/executor.cpp>)逐dispatch创建一个描述符池和一组描述符；这是明确的CPU/驱动成本，但占比未知。
-- [gemm](<../timestral/vulkan/shaders/gemm.comp>)一个线程计算一个输出，16×16工作组在M=1时只有16个线程写出，K循环反复barrier；W的全局加载在K方向不合并。寄存器tile和合并W加载都有独立价值。
-- [attentionFused](<../timestral/vulkan/shaders/attentionFused.comp>)每query/head一组64线程，每lane串行算一个key的QK，每块把PV部分和写回全局输出再读回。V读取沿j连续，不能简单称为全部散读；没有跨query的K/V共享。1024×1024×192×4约0.805GB是单层不计掩码的V逻辑读取上界，不是旧文所称8GB实际显存流量，缓存命中和编译器优化还会改变实际流量。
+- [Executor](<../../timestral/vulkan/executor.cpp>)逐dispatch创建一个描述符池和一组描述符；这是明确的CPU/驱动成本，但占比未知。
+- [gemm](<../../timestral/vulkan/shaders/gemm.comp>)一个线程计算一个输出，16×16工作组在M=1时只有16个线程写出，K循环反复barrier；W的全局加载在K方向不合并。寄存器tile和合并W加载都有独立价值。
+- [attentionFused](<../../timestral/vulkan/shaders/attentionFused.comp>)每query/head一组64线程，每lane串行算一个key的QK，每块把PV部分和写回全局输出再读回。V读取沿j连续，不能简单称为全部散读；没有跨query的K/V共享。1024×1024×192×4约0.805GB是单层不计掩码的V逻辑读取上界，不是旧文所称8GB实际显存流量，缓存命中和编译器优化还会改变实际流量。
 - 分页decode每个time层在host装配前缀、上传K/V并merge。跨调用驻留能去掉重复传输，但必须先解决页身份、淘汰和模型生命周期，不能把CPU pageId单独当稳定键。
 
 ## R优化树

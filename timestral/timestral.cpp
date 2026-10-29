@@ -56,6 +56,10 @@ void Timestral::abort(const std::string& streamId) {
     service->abort(streamId);
 }
 
+void Timestral::close(const std::string& session) {
+    service->close(session);
+}
+
 std::size_t Timestral::pendingRequests() const {
     return service->pendingRequests();
 }

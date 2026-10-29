@@ -35,6 +35,11 @@ public:
     // @throw std::invalid_argument 权重名称、形状或有限值不满足契约时抛出
     Transformer(ModelConfig loadedConfig, utils::Safetensors weights);
 
+    // @brief 设置time轴附加可见性谓词，须在模型共享给其它线程前调用
+    // @param mask 参数为从上下文网格起点计的patch下标，horizon接续计数，与原生掩码取与，空函数表示不附加
+    // @note 每个token对自身恒可见，谓词须可重入
+    void setTimeMask(std::function<bool(std::size_t, std::size_t)> mask);
+
     // @brief 模型配置
     // @return 构造时校验过的配置
     const ModelConfig& config() const override;
@@ -127,9 +132,25 @@ public:
         double positionOffset
     ) const override;
 
+    // 实验：attention sink页表追加，契约见Model::appendPagesSink
+    void appendPagesSink(
+        const CacheAppendInput& input,
+        PagePool& pool,
+        std::vector<std::size_t>& table
+    ) const override;
+
+    // 实验：冻结含sink首位页的页表后重算条件尾部，契约见Model::predictFrozenSink
+    Tensor predictFrozenSink(
+        const ForwardInput& input,
+        PagePool& pool,
+        const std::vector<std::size_t>& table,
+        double positionOffset
+    ) const override;
+
 protected:
     const ModelConfig modelConfig;
     const utils::Safetensors weights;
+    std::function<bool(std::size_t, std::size_t)> timeMask;  // 附加time轴可见性，空为原生掩码
 
     // 输入最后一维为in，权重布局为(out,in)，输出最后一维为out
     virtual Tensor project(const Tensor& input, const std::string& name, bool bias) const = 0;
@@ -244,6 +265,15 @@ private:
         bool shared
     ) const;
 
+    // @brief appendPages与appendPagesSink的共用主体
+    // @param sinkPrefix 为true时页表首位允许位置不对齐网格的sink页
+    void appendPagesImpl(
+        const CacheAppendInput& input,
+        PagePool& pool,
+        std::vector<std::size_t>& table,
+        bool sinkPrefix
+    ) const;
+
     Tensor forwardQuantiles(
         const ForwardInput& input,
         bool denormalize,
@@ -256,6 +286,7 @@ private:
     // @param denormalize 为true时按最后上下文patch帧反归一化
     // @param recordTrace 为true时写入trace
     // @param trace 输出参数，recordTrace为false时不写入
+    // @param sinkPrefix 为true时页表首位允许位置不对齐网格的sink页
     // @return 形状(rowCount,horizonPatches*P,Q)的分位数
     Tensor forwardQuantiles(
         const ForwardInput& input,
@@ -264,7 +295,8 @@ private:
         ModelTrace& trace,
         PagePool& pool,
         const std::vector<std::size_t>& table,
-        double positionOffset
+        double positionOffset,
+        bool sinkPrefix
     ) const;
 
 protected:

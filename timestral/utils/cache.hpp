@@ -100,13 +100,13 @@ private:
 // @return 页键指纹，只覆盖决定K/V与归一化的字段，分位数后处理参数不参与页复用
 std::uint64_t modelFingerprint(const ModelConfig& config);
 
-// 固定容量页池：构造时一次性分配capacity页及其缓冲，运行期不再分配
+// 固定容量页池：capacity是页数上限，页的K/V缓冲在首次占用时分配并在回收后复用
 // 查找为按页键的线性扫描（容量按页数计，规模很小，不引入额外索引）
 class PagePool {
 public:
     PagePool() = default;
 
-    // @brief 按几何与容量预分配页
+    // @brief 按几何与容量建立页池，K/V缓冲按需分配
     // @param geometry 每页的行数、头数、头维与time轴子层数
     // @param fingerprint 配置指纹，页键校验时使用
     // @param capacity 页数上限
@@ -185,17 +185,19 @@ public:
     // @brief 按页号取可写页
     // @param index 页号，须小于capacity()
     // @return 页引用，生命周期与页池一致
+    // @throw std::out_of_range 页号越界时抛出
     CachePage& page(std::size_t index);
 
     // @brief 按页号取只读页
     // @param index 页号，须小于capacity()
     // @return 页的常量引用
+    // @throw std::out_of_range 页号越界时抛出
     const CachePage& page(std::size_t index) const;
 
 private:
     // @brief 标记为占用并清空元数据
     // @param index 页号
-    // @note 缓冲已按容量预分配，这里不改变大小
+    // @note 首次使用时先分配K/V，成功后才登记占用状态
     void occupy(std::size_t index);
 
     PageGeometry shape;

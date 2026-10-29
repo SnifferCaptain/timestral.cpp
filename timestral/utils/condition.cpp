@@ -101,6 +101,11 @@ Tensor alignObservations(
     return observations;
 }
 
+static std::size_t conditionalSteps(const Engine& engine, const Timestral::Request& request, double interval) {
+    return request.horizonSeconds == 0.0 ? engine.patchBatch() * engine.config().patchSize
+        : stepCount(request.horizonSeconds, interval, "submit");
+}
+
 std::vector<Timestral::Result> predictConditionedBatch(
     const Engine& engine,
     const std::vector<std::reference_wrapper<const Timestral::Request>>& requests,
@@ -126,7 +131,7 @@ std::vector<Timestral::Result> predictConditionedBatch(
         throw std::invalid_argument("conditional observation boundaries do not match the grid");
     }
     const auto& controls = requests.front().get();
-    const std::size_t future = stepCount(controls.horizonSeconds, interval, "submit");
+    const std::size_t future = conditionalSteps(engine, controls, interval);
     const std::size_t finish = addLength(knownTime, future);
     const std::size_t steps = finish - first;
     const auto levels = quantileLevels(engine.config());
@@ -137,7 +142,7 @@ std::vector<Timestral::Result> predictConditionedBatch(
     for (std::size_t b = 0; b < batch; ++b) {
         const auto& request = requests[b].get();
         if (request.variables.size() != channels || !std::isfinite(origins[b])
-            || stepCount(request.horizonSeconds, interval, "submit") != future
+            || conditionalSteps(engine, request, interval) != future
             || request.symmetricAveraging != controls.symmetricAveraging
             || request.clipNonnegative != controls.clipNonnegative) {
             throw std::invalid_argument("conditional batch requests must have compatible controls");

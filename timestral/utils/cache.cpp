@@ -9,6 +9,8 @@
 #include <cstring>
 #include <utility>
 
+#include "timestral/utils/tensor.hpp"
+
 namespace timestral {
 
 // FNV-1a 64位参数（offset basis与prime）
@@ -95,14 +97,10 @@ PagePool::PagePool(PageGeometry geometry, std::uint64_t fingerprint, std::size_t
     : shape(geometry),
       configFingerprint(fingerprint),
       pages(capacity) {
-    const std::size_t slotSize = shape.rowCount * shape.headCount * shape.headDim;
+    elementCount({shape.rowCount, shape.headCount, shape.headDim});
+    elementCount({shape.rowCount, shape.headCount, shape.headDim, shape.timeLayers});
+    // K/V缓冲在页首次占用时分配，容量只是上限，未用到的页不占内存
     for (CachePage& entry : pages) {
-        entry.keys.resize(shape.timeLayers);
-        entry.values.resize(shape.timeLayers);
-        for (std::size_t layer = 0; layer < shape.timeLayers; ++layer) {
-            entry.keys[layer].assign(slotSize, 0.0f);
-            entry.values[layer].assign(slotSize, 0.0f);
-        }
         entry.maskBits.assign(shape.rowCount, 0);
         entry.positions.assign(shape.rowCount, 0);
         entry.scaleStates.assign(shape.rowCount, PageScaleState{});
@@ -245,28 +243,36 @@ std::size_t PagePool::find(std::uint64_t key, std::uint64_t parentKey, std::uint
 }
 
 CachePage& PagePool::page(std::size_t index) {
-    return pages[index];
+    return pages.at(index);
 }
 
 const CachePage& PagePool::page(std::size_t index) const {
-    return pages[index];
+    return pages.at(index);
 }
 
 void PagePool::occupy(std::size_t index) {
     CachePage& entry = pages[index];
+    if (entry.keys.size() != shape.timeLayers) {
+        const std::size_t slotSize = elementCount({shape.rowCount, shape.headCount, shape.headDim});
+        std::vector<std::vector<float>> keys(shape.timeLayers, std::vector<float>(slotSize, 0.0f));
+        std::vector<std::vector<float>> values(shape.timeLayers, std::vector<float>(slotSize, 0.0f));
+        entry.keys = std::move(keys);
+        entry.values = std::move(values);
+    } else {
+        for (std::size_t layer = 0; layer < entry.keys.size(); ++layer) {
+            std::fill(entry.keys[layer].begin(), entry.keys[layer].end(), 0.0f);
+            std::fill(entry.values[layer].begin(), entry.values[layer].end(), 0.0f);
+        }
+    }
+    entry.maskBits.assign(shape.rowCount, 0);
+    entry.positions.assign(shape.rowCount, 0);
+    entry.scaleStates.assign(shape.rowCount, PageScaleState{});
     entry.occupied = true;
     entry.references = 1;
     entry.lastUse = ++clock;
     entry.parentKey = 0;
     entry.key = 0;
     entry.inputFingerprint = 0;
-    entry.maskBits.assign(shape.rowCount, 0);
-    entry.positions.assign(shape.rowCount, 0);
-    entry.scaleStates.assign(shape.rowCount, PageScaleState{});
-    for (std::size_t layer = 0; layer < entry.keys.size(); ++layer) {
-        std::fill(entry.keys[layer].begin(), entry.keys[layer].end(), 0.0f);
-        std::fill(entry.values[layer].begin(), entry.values[layer].end(), 0.0f);
-    }
 }
 
 } // namespace timestral

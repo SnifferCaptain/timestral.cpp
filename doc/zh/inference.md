@@ -4,15 +4,15 @@
 
 ## 从采样点到张量
 
-公开接口只处理采样点。`Request::variables`是`vector<vector<Sample>>`，外层为通道、内层为按时间递增的`Sample{time, value}`，NaN表示缺测；`horizonSeconds`给出从最晚有效观测起要预测的秒数，`sampleInterval`为0时从时间戳推断。所有通道共用一条时间轴，哪一段是条件、哪一段要预测，只由各通道自身的观测位置决定，不需要角色表。完整声明见[timestral.hpp](<../timestral/timestral.hpp>)。
+公开接口只处理采样点。`Request::variables`是`vector<vector<Sample>>`，外层为通道、内层为按时间递增的`Sample{time, value}`，NaN表示缺测；`horizonSeconds`给出从最晚有效观测起要预测的秒数，`sampleInterval`为0时从时间戳推断。所有通道共用一条时间轴，哪一段是条件、哪一段要预测，只由各通道自身的观测位置决定，不需要角色表。完整声明见[timestral.hpp](<../../timestral/timestral.hpp>)。
 
 朴素做法是每次请求都把整段历史重新编码，再逐块预测。它简单且一定正确，问题在于传感器流的典型用法是“每来一小段新数据就预测一次”，相邻两次请求的历史绝大部分相同，重复编码占了主要成本。推理侧的大部分设计都围绕两件事展开：在保证与全量重算一致的前提下复用历史计算，以及让多条并发请求合并成更少的前向。
 
 ## 提交与调度
 
-![一次请求从提交到结果](<../assets/infer-flow.svg>)
+![一次请求从提交到结果](<../../assets/infer-flow.svg>)
 
-`submit`在调用线程完成全部校验和网格计算（[Service::prepare](<../timestral/utils/service.cpp#L218-L285>)），工作线程只做数值计算与页缓存维护。这样非法请求在提交处立即抛异常，不会占用队列；工作线程也不需要处理格式错误。服务只有一个工作线程，模型权重构造后只读，多个线程可以并发提交。
+`submit`在调用线程完成全部校验和网格计算（[Service::prepare](<../../timestral/utils/service.cpp#L218-L285>)），工作线程只做数值计算与页缓存维护。这样非法请求在提交处立即抛异常，不会占用队列；工作线程也不需要处理格式错误。服务只有一个工作线程，模型权重构造后只读，多个线程可以并发提交。
 
 三种策略的语义如下：
 
@@ -20,9 +20,9 @@
 - Mailbox：提交时如果队列里已有同一`streamId`尚未开始的请求，旧请求的future以`RequestSuperseded`结束并出队，只保留最新的一条；切换到Mailbox时也会对现有队列按来源去重。匿名请求（空`streamId`）各自分配唯一身份，互不去重。适合“只关心最新数据”的传感器流。
 - Continuous：从队首开始按FCFS连续取可拼批的请求，最多`maxBatch`条，遇到第一条不可拼批的就停止，不跳过、不抢占。一轮请求一起执行、一起释放槽位，没有逐token的中间状态。
 
-两条请求可拼批的条件见[Service::batchable](<../timestral/utils/service.cpp#L368-L408>)：通道数、历史长度、步数、间隔、是否使用分页网格以及两个后处理开关都一致；条件补全请求还要求观测布局逐点相同。`abort(streamId)`作废该来源所有未开始的请求，并归还它在页缓存中的引用。
+两条请求可拼批的条件见[Service::batchable](<../../timestral/utils/service.cpp#L368-L408>)：通道数、历史长度、步数、间隔、是否使用分页网格以及两个后处理开关都一致；条件补全请求还要求观测布局逐点相同。`abort(streamId)`作废该来源所有未开始的请求，并归还它在页缓存中的引用。
 
-一轮取出后，[executeRound](<../timestral/utils/service.cpp#L410-L521>)再分三路：只有一条时逐条执行；多条中命中了相同页表的请求组成一组共享解码；其余未命中的请求冷拼批成一次`(B,V,T)`前向。
+一轮取出后，[executeRound](<../../timestral/utils/service.cpp#L410-L521>)再分三路：只有一条时逐条执行；多条中命中了相同页表的请求组成一组共享解码；其余未命中的请求冷拼批成一次`(B,V,T)`前向。
 
 ## 网格与上下文
 
@@ -31,11 +31,11 @@
 - 全量路径把保留的历史左填充到patch整数倍，填充位置标为未观测。
 - 分页路径把历史左对齐到patch边界，整patch前缀入页，末尾不满一个patch的部分不入页，在解码时与horizon一起编码。左对齐使同一来源追加数据时，前面patch的边界保持不变，页键才能命中。
 
-是否使用分页网格在提交时判定：后端支持增量接口；连续RoPE模式下历史必须是patch整数倍；补齐后不越过`maxContext`；整patch数不超过`cachePages`。最后一条意味着默认64页只覆盖2048个采样点，更长的历史在默认设置下走全量路径，这是从[判定代码](<../timestral/utils/service.cpp#L279-L284>)直接读出的结论。
+是否使用分页网格在提交时判定：后端支持增量接口；连续RoPE模式下历史必须是patch整数倍；补齐后不越过`maxContext`；整patch数不超过`cachePages`。默认2048页覆盖65536个采样点，超过5M的32768点上下文，因此默认设置下单通道历史都走分页路径，判定见[判定代码](<../../timestral/utils/service.cpp#L361-L366>)。对称平均的镜像pass把前缀取负后另建一条页链，与正号页共用页池，容量不足时只让镜像pass全量重算。
 
 ## 分块自回归与refine
 
-模型一次最多解码`block_size`个patch（5M为32，即1024步）。`Settings::patchBatch`默认16，构造时钳制到`block_size`。horizon更长时，[rawForecast](<../timestral/utils/engine.cpp#L180-L426>)按块循环：
+模型一次最多解码`block_size`个patch（5M为32，即1024步）。`Settings::patchBatch`默认16，构造时钳制到`block_size`。horizon更长时，[rawForecast](<../../timestral/utils/engine.cpp#L180-L426>)按块循环：
 
 1. 用当前上下文前向一块，分页时调用`decodePages`，否则调用`predictBlock`。
 2. 对多于1个patch的块做advancing refine：每个预测patch的输出帧随已生成内容推进，首patch沿用最后一个上下文patch的帧，后续patch按Welford前缀合并后的状态折叠中位数并反归一化其余分位数。前缀合并用Hillis-Steele方式，保持上游两两合并的结合顺序。
@@ -46,7 +46,7 @@
 
 ## 分位数后处理
 
-块循环结束后，[Engine::computePrediction](<../timestral/utils/engine.cpp#L497-L628>)依次做三步，算法见[postprocess.cpp](<../timestral/utils/postprocess.cpp>)：
+块循环结束后，[Engine::computePrediction](<../../timestral/utils/engine.cpp#L497-L628>)依次做三步，算法见[postprocess.cpp](<../../timestral/utils/postprocess.cpp>)：
 
 - 范围截断：每条目标轨迹的全部输出夹到“初始上下文观测的最小值与最大值各向外扩1e4×最后scale”的范围内。阈值1e4和回灌阈值1e30是固定的后处理语义，不作为公开选项。
 - 对称平均：`symmetricAveraging`为true时把输入取负再完整预测一次，镜像结果的分位数翻转取负后与原结果平均，即`q[i] = 0.5 × (q[i] − m[Q−1−i])`。镜像前向使用空页池，不走缓存，因此开启它时一次请求有一半计算无法被前缀缓存省掉。
@@ -58,17 +58,17 @@
 
 先确认什么可以缓存。在全目标、无协变量的标准路径上，三个条件同时成立：归一化是因果的，time轴编码掩码是因果的，预测查询不进入编码流。因此第p个patch在每个time子层的K/V只依赖前p个patch的输入，后续数据不会改变它。variate注意力只在同一slot内跨通道，不需要跨patch的K/V，但它让一个通道的变化影响同组其他通道的高层K/V，所以一页必须保存整组通道，不能按单通道独立命中。
 
-![内容寻址分页前缀缓存](<../assets/infer-pages.svg>)
+![内容寻址分页前缀缓存](<../../assets/infer-pages.svg>)
 
-页的定义见[cache.hpp](<../timestral/utils/cache.hpp>)：一页是一个patch、一组V行在全部time子层的K/V，外加每行的掩码位、RoPE位置和patch末尾的归一化累计量。按5M几何推算，每行每页的K/V是8个子层×2×192个FP32，即12KiB，不含元数据；默认64页的单通道页池约768KiB。这是按几何计算的数字，没有实测进程内存。
+页的定义见[cache.hpp](<../../timestral/utils/cache.hpp>)：一页是一个patch、一组V行在全部time子层的K/V，外加每行的掩码位、RoPE位置和patch末尾的归一化累计量。按5M几何推算，每行每页的K/V是8个子层×2×192个FP32，即12KiB，不含元数据；默认上限2048页的单通道页池最多约24MiB，页按需分配，实际占用随用到的页数增长。这是按几何计算的数字，没有实测进程内存。
 
-页池按实际使用的通道数V分别建立，容量为`cachePages`，首次使用时一次分配全部缓冲，运行期不再分配。页的身份由内容决定，参考vLLM的prefix caching：
+页池按实际使用的通道数V分别建立，容量上限为`cachePages`，页的K/V缓冲在首次占用时分配，回收后原地复用。页的身份由内容决定，参考vLLM的prefix caching：
 
 $$
 \text{key}_i=\text{FNV-1a}\left(\text{seed},\ \text{key}_{i-1},\ \text{观测位},\ \text{值的位模式},\ \text{掩码位},\ \text{位置},\ \text{配置指纹}\right)
 $$
 
-值按IEEE 754位模式哈希，NaN载荷和有符号零都会影响页键。另用不同种子算一个只覆盖本页输入的`inputFingerprint`，查找时同时比对页键、父页键和输入指纹，降低哈希碰撞把不同内容当成同一页的风险。配置指纹只覆盖决定K/V的字段，分位数后处理参数不参与，见[modelFingerprint](<../timestral/utils/cache.cpp>)。
+值按IEEE 754位模式哈希，NaN载荷和有符号零都会影响页键。另用不同种子算一个只覆盖本页输入的`inputFingerprint`，查找时同时比对页键、父页键和输入指纹，降低哈希碰撞把不同内容当成同一页的风险。配置指纹只覆盖决定K/V的字段，分位数后处理参数不参与，见[modelFingerprint](<../../timestral/utils/cache.cpp>)。
 
 内容寻址的直接结果是缓存不按来源隔离：两个来源只要前缀内容相同，就命中同一批物理页，引用计数加一。每个`streamId`只持有一份页号视图。页池满时只淘汰引用计数为0的最久未用页；没有可淘汰页时这条请求退回全量重算，并报告0页统计，不抢占正在执行的请求。匿名请求的视图在执行后立即归还，页键留给LRU回收。归一化统计、掩码、位置或输入值任一变化都会改变页键，旧页自然不再命中，不需要显式失效通知。
 
@@ -76,7 +76,7 @@ $$
 
 分页路径把一次预测拆成两段，与语言模型的prefill/decode对应：
 
-- prefill：[appendPages](<../timestral/utils/transformer.cpp#L997-L1236>)把页表之后尚未入页的整patch编码进页池，尾部连续未命中段按整段prefill一次编码落页，命中前缀直接复用。BLAS后端开启了`optimizedPrefill`，纯prefill在最后一个time子层的K/V写入页后即结束，不再计算后续MLP与分位数头。
+- prefill：[appendPages](<../../timestral/utils/transformer.cpp#L997-L1236>)把页表之后尚未入页的整patch编码进页池，尾部连续未命中段按整段prefill一次编码落页，命中前缀直接复用。BLAS后端开启了`optimizedPrefill`，纯prefill在最后一个time子层的K/V写入页后即结束，不再计算后续MLP与分位数头。
 - decode：`decodePages`从页表最后一页的累计量继续归一化尚未入页的尾部，读取前缀页的K/V作为time注意力的key，只为尾部与查询槽计算隐藏状态；输出帧取最后一个patch末尾的累计量。
 
 正确性判据是与相同掩码及归一化语义的全量重算一致，口径为max(1e-6, 1e-5×输出RMS)。进度记录中有一组历史测量（默认构建、真实5M、间隔0.01秒）：对齐与缺测用例max_abs=0；1000点逐步追加时max_abs=0，命中率从0.5升到约0.90；相同前缀第二次请求0页新算，总耗时25.52ms，第一次为67.57ms。产生这组数字的streamTest.cpp已不在当前tests目录中，数字未在当前代码上复测。
@@ -89,17 +89,17 @@ $$
 
 引擎内部沿用上游的行角色：Target=0、PastCov=1、KnownCov=2，每行一个角色而不是逐点角色。past协变量只有历史；known协变量提供上下文加horizon的值，按全窗口统计归一化，并在time轴编码时双向可见。公开入口不生成past行，引擎的past/known行主要用于复现上游协变量对照。
 
-公开接口里，通道的观测末尾不齐时自动按观测可用性分段补全，实现在[condition.cpp](<../timestral/utils/condition.cpp>)。例如三个通道历史长度为3、7、4，预测到10：先只把A当目标预测位置4；再把A、C当目标、B当known预测5到7；最后三者联合预测8到10。每段调用原生短horizon预测，下一段的上下文由真实读数和已生成的中位数组成，真实观测不会被模型输出覆盖。分段会改变patch左填充和归一化起点，它是一种明确的推理策略，不等价于模型原生支持逐点角色。
+公开接口里，通道的观测末尾不齐时自动按观测可用性分段补全，实现在[condition.cpp](<../../timestral/utils/condition.cpp>)。例如三个通道历史长度为3、7、4，预测到10：先只把A当目标预测位置4；再把A、C当目标、B当known预测5到7；最后三者联合预测8到10。每段调用原生短horizon预测，下一段的上下文由真实读数和已生成的中位数组成，真实观测不会被模型输出覆盖。分段会改变patch左填充和归一化起点，它是一种明确的推理策略，不等价于模型原生支持逐点角色。
 
 条件路径不复用跨请求的历史KV。原因在[模型架构](<architecture.md>)中已经提到：known行双向可见且使用全窗口统计，target又在同一slot跨通道读取known，后续层的历史K/V会依赖未来known值。所有通道都有观测只是候选条件，不足以证明隐藏状态可复用。
 
 ## 实验：冻结前缀与FIFO滑窗
 
-![冻结前缀与FIFO滑窗](<../assets/infer-swa.svg>)
+![冻结前缀与FIFO滑窗](<../../assets/infer-swa.svg>)
 
-[streaming示例实现](<../example/tui/streaming.cpp>)提供了一条只在示例层启用的近似路径，用来回答“窗口满后能否用有界的KV存储无限推进”。共同历史的完整patch按全目标因果路径写入持久页，页表达到容量后释放最老页再追加新页；`positionOffset`让保留页沿用原始绝对位置，不重新编号旧KV；归一化累计量从流起点持续累计，不因淘汰旧页回退。预测时`predictFrozen`读取这些冻结页，只重算辅助通道与预测尾部。
+[streaming示例实现](<../../example/tui/streaming.cpp>)提供了一条只在示例层启用的近似路径，用来回答“窗口满后能否用有界的KV存储无限推进”。共同历史的完整patch按全目标因果路径写入持久页，页表达到容量后释放最老页再追加新页；`positionOffset`让保留页沿用原始绝对位置，不重新编号旧KV；归一化累计量从流起点持续累计，不因淘汰旧页回退。预测时`predictFrozen`读取这些冻结页，只重算辅助通道与预测尾部。
 
-它与“每轮重算窗口内最近样本”的模型不等价：保留页携带建立时的上下文信息，窗口滑动后不会重算。它不是把双向编码器强行改造成decoder：原生known-future路径具有双向编码与全窗口统计，冻结其历史依赖属于有意近似。默认公开服务不走这条路径。界面、配置键与逐轮输出字段见[流式界面](<../example/tui/streamingTui.cpp>)与[示例说明](<../example/README.md>)。
+它与“每轮重算窗口内最近样本”的模型不等价：保留页携带建立时的上下文信息，窗口滑动后不会重算。它不是把双向编码器强行改造成decoder：原生known-future路径具有双向编码与全窗口统计，冻结其历史依赖属于有意近似。默认公开服务不走这条路径。界面、配置键与逐轮输出字段见[流式界面](<../../example/tui/streamingTui.cpp>)与[示例说明](<../../example/README.md>)。
 
 扫描工具（本地工具 `example-tools/swaBench.cpp`，不入库）在128、512、1k、2k、4k、8k六个窗口上把共同历史推进到131072点，每到一个约1.2倍步长的上下文重新计算一次第一通道的512步预测，并与同窗口的原生全量重算对照。测量条件：真实5M、两个相关的傅里叶通道、100Hz、幅值噪声0.03、horizon=512（16个patch）、每个位置1patch反馈，关闭对称平均和非负截断。K为冻结共同历史KV并由FIFO淘汰最老页，N为按观测布局分段的原生重算；RMSE只统计未观测的预测位置，与无噪声reference比较。
 
@@ -113,7 +113,7 @@ $$
 | 4k | 0.083611 | 0.067024 | 49.64 | 9.45 | 5.3 |
 | 8k | 0.069494 | 0.058639 | 123.95 | 13.15 | 9.4 |
 
-![SWA窗口扫描](<../assets/swa-rmse.png>)
+![SWA窗口扫描](<../../assets/swa-rmse.png>)
 
 RMSE列与曲线来自既有Eigen FP32四线程扫描，双通道信号，每个位置1patch反馈。时延列是另一次按正常生产工况的重测，不属于该扫描：单变量，BLAS AVX2单线程，horizon=512（16个patch，每patch预测32点），一帧完成全部512步预测。原生整帧是`predictBlock`，不使用缓存，每帧重新编码整个窗口；缓存整帧是`decodePages`，窗口前缀已经驻留在分页KV中，只计这一帧的解码，前缀的`appendPages`不在计时内。同一口径下单次完整前向与同长度prefill同量级：8k窗口原生整帧（8192上下文加512预测）123.95ms，对同一机器状态的8k单变量prefill 104.15ms，只多出约19%。两条路径在同一帧粒度下数值一致（8k窗口RMSE 0.0696039对0.0696051）。取3次中位数，计时前各预热1次，不含模型加载。硬件为AMD Ryzen 7 7735H、MSVC Release；换机器或换线程数后需要重测，供电状态影响绝对值（同一8k双通道prefill口径，benchmark.md一次采集为106.83ms，本次复测为233.4ms），跨采集批只对照相对倍数与量级。原始数据（RMSE表、整帧时延表、未滑动控制）在本地工作区保留。
 
@@ -131,7 +131,7 @@ RMSE列与曲线来自既有Eigen FP32四线程扫描，双通道信号，每个
 - 窗口越大，K越接近N，但缓存解码也更慢：缓存整帧从128窗口的6ms缓慢升到8k窗口的13ms，原生整帧则从8ms升到124ms，8k窗口约9.4倍；512窗口为6.4ms对10.4ms。省下的主要是重复前缀编码，窗口内注意力读取成本仍要付出，小窗口下两者差距不大。
 - 模型context_length是32768个采样点，不代表流只能到32k，这里128k是流长度，每次前向仍只看window。长流可行不等于模型获得无限感受野，也不等于旧页信息仍然正确。
 
-结论：SWA适合显式选择的质量/时延折中，不能默认替换精确重算。需要默认精度时使用原生路径，需要受限预算时可用BLAS单线程或用`threads`限制Eigen线程，但后端与线程数不改变上述近似误差。保留首个token作为attention sink的设想已记录在本地滑窗记录，尚未实现。
+结论：SWA适合显式选择的质量/时延折中，不能默认替换精确重算。需要默认精度时使用原生路径，需要受限预算时可用BLAS单线程或用`threads`限制Eigen线程，但后端与线程数不改变上述近似误差。保留首个token的KV作为attention sink已按实验接口实现并完成扫描（见本地滑窗记录）：平稳小窗口下能部分恢复远距相位锚点、解码无可测额外成本，但无法阻止统计漂移下冻结缓存的退化；未并入默认路径，接口保持实验性。
 
 ## 实验：连续时间RoPE
 

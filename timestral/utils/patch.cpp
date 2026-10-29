@@ -270,15 +270,18 @@ void verifyTableGrid(
     const std::vector<std::size_t>& groupIds,
     const std::map<std::size_t, std::size_t>& first,
     const std::vector<double>& coordinates,
-    double positionOffset
+    double positionOffset,
+    std::size_t skipPositions
 ) {
     const std::size_t patchCount = rowCount == 0 ? 0 : keyValid.size() / rowCount;
     for (std::size_t slot = 0; slot < table.size(); ++slot) {
         const CachePage& entry = pool.page(table[slot]);
         for (std::size_t row = 0; row < rowCount; ++row) {
-            const double expected = relativeCoordinate(row, slot, rowCount, groupIds, first, coordinates);
-            if (entry.positions[row] != expected + positionOffset) {
-                throw std::invalid_argument("model: page table grid does not match context");
+            if (slot >= skipPositions) {
+                const double expected = relativeCoordinate(row, slot, rowCount, groupIds, first, coordinates);
+                if (entry.positions[row] != expected + positionOffset) {
+                    throw std::invalid_argument("model: page table grid does not match context");
+                }
             }
             if (entry.maskBits[row] != keyValid[row * patchCount + slot]) {
                 throw std::invalid_argument("model: cached page mask does not match context");

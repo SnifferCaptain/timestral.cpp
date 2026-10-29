@@ -69,4 +69,4 @@ cmake --build example/tui/build --config Release --parallel
 
 N调用既有Engine原生分段条件路径，K只对新共同历史patch编码入持久页；aux及生成值不进入持久KV。K重算条件尾部时读取冻结前缀，FIFO只删除最老页、不重算剩余页，报告retained/reused/appended/fifo_evicted和包含追加页成本的耗时。为隔离缓存差异，两条路径都使用1patch反馈、关闭对称平均和非负截断；K稀疏aux采用patch级近似，N保持逐位置观测分段。
 
-这条近似路径的质量与时延结论、未滑动控制线与现象分析见[推理侧设计](<../doc/inference.md>)的冻结前缀与FIFO滑窗实验一节。
+这条近似路径的质量与时延结论、未滑动控制线与现象分析见[推理侧设计](<../doc/zh/inference.md>)的冻结前缀与FIFO滑窗实验一节。

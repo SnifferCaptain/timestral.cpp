@@ -34,9 +34,9 @@ Timestral的回答可以概括成四点，后文逐一展开：
 | `attend_missing_patches` | true | 缺测patch在出现首个观测后仍可被关注 |
 | `attn_bias`、`mlp_bias` | false | 注意力与MLP投影不带偏置 |
 
-字段读取与校验见[config.hpp](<../timestral/utils/config.hpp>)，未知字段和缺失必填项都会被拒绝。
+字段读取与校验见[config.hpp](<../../timestral/utils/config.hpp>)，未知字段和缺失必填项都会被拒绝。
 
-![Timestral-5M一次前向的结构](<../assets/arch-overview.svg>)
+![Timestral-5M一次前向的结构](<../../assets/arch-overview.svg>)
 
 ## 因果patch归一化
 
@@ -51,11 +51,11 @@ $$
 \tilde{x}_t=\operatorname{asinh}\left(\frac{x_t-\mu_p}{\max(\sigma_p,\varepsilon_{\text{FP32}})}\right)
 $$
 
-缺测点的归一化值置0，缺测信息另由指示位携带。累计量在[patch.cpp](<../timestral/utils/patch.cpp>)中用double保存，源码注释说明累加顺序、asinh与minimum_scale与上游causal_patch_loc_scale一致。
+缺测点的归一化值置0，缺测信息另由指示位携带。累计量在[patch.cpp](<../../timestral/utils/patch.cpp>)中用double保存，源码注释说明累加顺序、asinh与minimum_scale与上游causal_patch_loc_scale一致。
 
 这里的关键是“因果”：第p个patch的缩放只依赖它和它之前的观测。后面追加数据不会改变前面patch的输入，这是后文分页KV缓存成立的前提之一。每页因此会保存patch末尾的count、sum和M2，增量解码从这里继续累计，不必重扫整条前缀，见[推理设计](<inference.md>)。
 
-known-future协变量行是例外：它按整个窗口（上下文加horizon）的总体方差归一化，取值只有0和1的二值行固定loc=0、scale=1且不取asinh，实现在[transformer.cpp](<../timestral/utils/transformer.cpp#L502-L544>)。
+known-future协变量行是例外：它按整个窗口（上下文加horizon）的总体方差归一化，取值只有0和1的二值行固定loc=0、scale=1且不取asinh，实现在[transformer.cpp](<../../timestral/utils/transformer.cpp#L502-L544>)。
 
 ## patch嵌入与预测查询
 
@@ -71,7 +71,7 @@ $$
 
 ## block schedule与两类注意力轴
 
-`block_schedule`的每一项展开成一到两个注意力子层，见[patch.cpp](<../timestral/utils/patch.cpp#L20-L34>)：
+`block_schedule`的每一项展开成一到两个注意力子层，见[patch.cpp](<../../timestral/utils/patch.cpp#L20-L34>)：
 
 | 取值 | 子层顺序 |
 | --- | --- |
@@ -86,13 +86,13 @@ time轴注意力在同一行内跨slot进行，承担时间上的依赖。variat
 
 ## 因果掩码与缺失patch
 
-time轴掩码由`timeAllowed`给出，见[transformer.cpp](<../timestral/utils/transformer.cpp#L706-L739>)。先定义有效key：一个patch有观测，或者允许关注缺测且该行此前已出现过观测，就可以被后续槽读取（[buildKeyValid](<../timestral/utils/patch.cpp#L167-L188>)）。在没有协变量时规则如下：
+time轴掩码由`timeAllowed`给出，见[transformer.cpp](<../../timestral/utils/transformer.cpp#L706-L739>)。先定义有效key：一个patch有观测，或者允许关注缺测且该行此前已出现过观测，就可以被后续槽读取（[buildKeyValid](<../../timestral/utils/patch.cpp#L167-L188>)）。在没有协变量时规则如下：
 
 - 编码query只读不晚于自身的有效编码key，自身总是可见。
 - 解码query读全部有效的上下文编码key，以及不晚于自身的解码槽。
 - 编码query不读解码流。
 
-![time轴掩码示例](<../assets/arch-mask.svg>)
+![time轴掩码示例](<../../assets/arch-mask.svg>)
 
 加入协变量后有三条附加规则：known行的编码query在时间上双向可见；解码流中位于上下文段的query不读编码流；未来段的解码query只读上下文段的编码key。variate轴另有一道“防火墙”：协变量行不能读目标行，known行不能读非known行，信息只从协变量流向目标。
 
@@ -109,9 +109,9 @@ $$
 \begin{bmatrix}x_j\\ x_{j+32}\end{bmatrix}
 $$
 
-![部分RoPE布局](<../assets/arch-rope.svg>)
+![部分RoPE布局](<../../assets/arch-rope.svg>)
 
-实现见[kernels.cpp](<../timestral/reference/kernels.cpp#L128-L162>)。发布权重的fused QKV按(qkv, headDim, head)排列，注意力需要(head, headDim)，重排在`prepareQkv`中完成，见[reference/model.cpp](<../timestral/reference/model.cpp#L35-L60>)。
+实现见[kernels.cpp](<../../timestral/reference/kernels.cpp#L128-L162>)。发布权重的fused QKV按(qkv, headDim, head)排列，注意力需要(head, headDim)，重排在`prepareQkv`中完成，见[reference/model.cpp](<../../timestral/reference/model.cpp#L35-L60>)。
 
 位置p是slot下标减去同组首个有观测patch的下标。没有协变量时查询槽接在上下文之后继续编号；有协变量时解码流的位置与编码流对齐，即slot减去编码槽数。`Settings::continuousRope`可以把整数slot换成由真实时间换算的实数坐标，这是默认关闭的实验选项，记录中的样例没有显示精度改善。
 
@@ -129,7 +129,7 @@ $$
 
 ## SwiGLU MLP
 
-MLP同样是pre-norm：`w12`把192维投影到1024维，按前一半逐元素乘SiLU(后一半)得到512维，再经`w3`投影回192维加到残差上。这个“两半中只有后一半经过SiLU”的顺序与上游一致，交换会得到完全不同的结果，见[transformer.cpp](<../timestral/utils/transformer.cpp#L35-L51>)。
+MLP同样是pre-norm：`w12`把192维投影到1024维，按前一半逐元素乘SiLU(后一半)得到512维，再经`w3`投影回192维加到残差上。这个“两半中只有后一半经过SiLU”的顺序与上游一致，交换会得到完全不同的结果，见[transformer.cpp](<../../timestral/utils/transformer.cpp#L35-L51>)。
 
 ## 分位数头
 
@@ -159,7 +159,7 @@ $$
 | 分位数头 | head.projection三个投影 | 792576 |
 | 合计 | | 5208960 |
 
-[Transformer构造函数](<../timestral/utils/transformer.cpp#L146-L214>)按同样的清单校验每个权重的名称、形状和有限性，多出或缺少任何一个都会拒绝加载。
+[Transformer构造函数](<../../timestral/utils/transformer.cpp#L146-L214>)按同样的清单校验每个权重的名称、形状和有限性，多出或缺少任何一个都会拒绝加载。
 
 ## C++仓库模块
 
@@ -179,7 +179,7 @@ timestral/
 │   ├── backend.hpp             # loadBackendModel声明
 │   ├── attention.hpp           # 注意力视图与掩码描述
 │   └── 其余基础文件            # tensor、config、json、safetensors、postprocess、stats
-├── reference/                  # 标量内核与默认后端
+├── reference/                  # 标量内核，非x86目标的默认后端
 ├── eigen/                      # Eigen可选后端
 ├── ytensor/                    # ytensor可选后端
 └── blas/                       # 自写BLAS可选后端
@@ -187,13 +187,13 @@ timestral/
 
 职责边界按仓库内部代码规范执行：`timestral/`根目录只有入口两个文件；`utils/`承载所有与后端无关的东西，包括调度、缓存、归一化、后处理和统计；后端目录只放该后端自己的线性代数与内核，不放缓存管理和后处理。没有独立的ops层，跨后端共用的“算子”实际是模型语义，归`utils`。
 
-![模块划分与依赖方向](<../assets/arch-modules.svg>)
+![模块划分与依赖方向](<../../assets/arch-modules.svg>)
 
-公开头[timestral.hpp](<../timestral/timestral.hpp>)只暴露`Sample`和嵌套在`Timestral`里的`Settings`、`Request`、`Result`、`Policy`，内部类型只以`Service`前置声明出现。张量、页池和角色表都留在内部，调用方只处理采样点。
+公开头[timestral.hpp](<../../timestral/timestral.hpp>)只暴露`Sample`和嵌套在`Timestral`里的`Settings`、`Request`、`Result`、`Policy`，内部类型只以`Service`前置声明出现。张量、页池和角色表都留在内部，调用方只处理采样点。
 
 ## 后端在链接期选择
 
-后端选择不经过宏。[backend.hpp](<../timestral/utils/backend.hpp>)只声明一个工厂函数`loadBackendModel`，四个后端目录各有一个`backend.cpp`给出定义，CMake在配置期只把其中一个加入库目标：
+后端选择不经过宏。[backend.hpp](<../../timestral/utils/backend.hpp>)只声明一个工厂函数`loadBackendModel`，四个后端目录各有一个`backend.cpp`给出定义，CMake在配置期只把其中一个加入库目标：
 
 ~~~cmake
 set(TIMESTRAL_SELECTED_BACKEND timestral/reference/backend.cpp)
@@ -203,21 +203,21 @@ if(TIMESTRAL_USE_EIGEN)
 endif()
 ~~~
 
-上面是[CMakeLists.txt](<../CMakeLists.txt#L19-L35>)的节选，ytensor与BLAS的分支同理；任意两个可选后端同时开启会在配置阶段以FATAL_ERROR退出。这样做的结果是：整个构建里`loadBackendModel`只有一个定义，公开头和调度代码里看不到任何后端条件编译，默认构建也不会包含Eigen或ytensor的头文件。代价是一次构建只能有一个后端，对比后端要分别配置构建目录。
+上面是[CMakeLists.txt](<../../CMakeLists.txt#L19-L35>)的节选，ytensor与BLAS的分支同理；任意两个可选后端同时开启会在配置阶段以FATAL_ERROR退出。这样做的结果是：整个构建里`loadBackendModel`只有一个定义，公开头和调度代码里看不到任何后端条件编译，默认构建也不会包含Eigen或ytensor的头文件。代价是一次构建只能有一个后端，对比后端要分别配置构建目录。
 
 ## 一次预测的数据流
 
 1. 构造`Timestral`时，`loadEngine`读取config.json和model.safetensors，调用链接进来的`loadBackendModel`得到只读模型，再启动`Service`的工作线程。
 2. `submit`在调用线程完成全部校验：历史不少于2个patch、时间戳严格递增、推断采样间隔和预测步数、按`maxContext`裁剪历史，并判断能否使用分页网格。
 3. 工作线程按调度策略取出一轮请求，命中前缀页的走分页路径，其余全量重算或冷拼批。
-4. [Engine](<../timestral/utils/engine.cpp>)把上下文左填充到patch整数倍，按每块`patchBatch`个patch循环：前向得到分位数，做advancing refine，把目标中位数回灌为下一块的上下文。
+4. [Engine](<../../timestral/utils/engine.cpp>)把上下文左填充到patch整数倍，按每块`patchBatch`个patch循环：前向得到分位数，做advancing refine，把目标中位数回灌为下一块的上下文。
 5. 全部块结束后依次做范围截断、对称平均和非负截断，最后组装成`Result`，附带计时和页命中统计。
 
 第2至5步的调度、缓存和后处理细节见[推理设计](<inference.md>)。
 
 ## 取舍
 
-模型编排只写一份。[Transformer](<../timestral/utils/transformer.hpp>)持有嵌入、掩码、分页和分位数头的全部逻辑，reference和BLAS只覆盖投影、RMSNorm、QKV布局、注意力等窄钩子，掩码或分页的修改不必在多个后端同步。Eigen与ytensor是更早接入的后端，仍各自保留一份完整编排，只把矩阵乘法换成各自的库、逐元素算子调用reference内核；这部分重复是已知的历史成本，修改公共语义时要三处一起核对。
+模型编排只写一份。[Transformer](<../../timestral/utils/transformer.hpp>)持有嵌入、掩码、分页和分位数头的全部逻辑，reference和BLAS只覆盖投影、RMSNorm、QKV布局、注意力等窄钩子，掩码或分页的修改不必在多个后端同步。Eigen与ytensor是更早接入的后端，仍各自保留一份完整编排，只把矩阵乘法换成各自的库、逐元素算子调用reference内核；这部分重复是已知的历史成本，修改公共语义时要三处一起核对。
 
 `split_context_horizon_attn`字段会被解析并保存，但在当前C++源码中没有找到读取它的计算分支；记录中“关闭split”的微型模型对照通过，但该开关在上游的确切语义尚未逐行核对，这里标为未验证。
 

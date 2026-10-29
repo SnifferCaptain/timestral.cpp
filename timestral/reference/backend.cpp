@@ -16,9 +16,12 @@ std::shared_ptr<const Model> loadBackendModel(
     const ModelConfig& config,
     utils::Safetensors&& weights,
     std::size_t,
-    std::size_t
+    std::size_t,
+    std::function<bool(std::size_t, std::size_t)> timeMask
 ) {
-    return std::shared_ptr<const Model>(reference::makeModel(config, std::move(weights)));
+    auto model = std::make_shared<reference::Model>(config, std::move(weights));
+    model->setTimeMask(std::move(timeMask));
+    return model;
 }
 
 } // namespace timestral
