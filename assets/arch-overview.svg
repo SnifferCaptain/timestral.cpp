@@ -1,24 +1,24 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="670" viewBox="0 0 1000 670" font-family="Microsoft YaHei, PingFang SC, Noto Sans CJK SC, sans-serif" font-size="14" fill="#1f2933">
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="670" viewBox="0 0 1000 670" font-family="Helvetica, Arial, sans-serif" font-size="14" fill="#1f2933">
 <defs>
 <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#52606d"/></marker>
 </defs>
 <rect x="0" y="0" width="1000" height="670" fill="#fafbfc"/>
-<text x="500" y="34" text-anchor="middle" font-size="20" font-weight="bold">Timestral-5M一次前向的结构（单通道、无协变量）</text>
+<text x="500" y="34" text-anchor="middle" font-size="20" font-weight="bold">Timestral-5M single forward pass (single channel, no covariates)</text>
 <rect x="30" y="60" width="210" height="66" rx="6" fill="#e8f1fd" stroke="#4c8bf5" stroke-width="1.5"/>
-<text x="135" y="87.9" text-anchor="middle" font-size="14" font-weight="bold">原始读数 (V, T)</text>
-<text x="135" y="107.9" text-anchor="middle" font-size="13">NaN表示缺测</text>
+<text x="135" y="87.9" text-anchor="middle" font-size="14" font-weight="bold">Raw readings (V, T)</text>
+<text x="135" y="107.9" text-anchor="middle" font-size="13">NaN marks missing values</text>
 <path d="M240,93 H273" fill="none" stroke="#52606d" stroke-width="1.6" marker-end="url(#arrow)"/>
 <rect x="275" y="60" width="210" height="66" rx="6" fill="#e8f1fd" stroke="#4c8bf5" stroke-width="1.5"/>
-<text x="380" y="87.9" text-anchor="middle" font-size="14" font-weight="bold">因果patch归一化</text>
-<text x="380" y="107.9" text-anchor="middle" font-size="13">Welford累计、asinh</text>
+<text x="380" y="87.9" text-anchor="middle" font-size="14" font-weight="bold">Causal patch normalization</text>
+<text x="380" y="107.9" text-anchor="middle" font-size="13">Welford running, asinh</text>
 <path d="M485,93 H518" fill="none" stroke="#52606d" stroke-width="1.6" marker-end="url(#arrow)"/>
 <rect x="520" y="60" width="210" height="66" rx="6" fill="#e8f1fd" stroke="#4c8bf5" stroke-width="1.5"/>
-<text x="625" y="87.9" text-anchor="middle" font-size="14" font-weight="bold">patch输入 (V, N, 64)</text>
-<text x="625" y="107.9" text-anchor="middle" font-size="13">32个值 + 32个缺失标志</text>
+<text x="625" y="87.9" text-anchor="middle" font-size="14" font-weight="bold">Patch input (V, N, 64)</text>
+<text x="625" y="107.9" text-anchor="middle" font-size="13">32 values + 32 missing flags</text>
 <path d="M730,93 H763" fill="none" stroke="#52606d" stroke-width="1.6" marker-end="url(#arrow)"/>
 <rect x="765" y="60" width="210" height="66" rx="6" fill="#e8f1fd" stroke="#4c8bf5" stroke-width="1.5"/>
-<text x="870" y="87.9" text-anchor="middle" font-size="14" font-weight="bold">patch_proj残差MLP</text>
+<text x="870" y="87.9" text-anchor="middle" font-size="14" font-weight="bold">patch_proj residual MLP</text>
 <text x="870" y="107.9" text-anchor="middle" font-size="13">64 → 768 → 192</text>
 <path d="M870,126 V150 H140 V176" fill="none" stroke="#52606d" stroke-width="1.6" marker-end="url(#arrow)"/>
 <rect x="150" y="180" width="56" height="42" rx="6" fill="#e8f1fd" stroke="#4c8bf5" stroke-width="1.5"/>
@@ -37,36 +37,36 @@
 <rect x="648" y="180" width="56" height="42" rx="6" fill="#fdf0e1" stroke="#e8a33d" stroke-width="1.5"/>
 <text x="676" y="205.9" text-anchor="middle" font-size="14">Q(H)</text>
 <text x="624" y="207" text-anchor="middle" font-size="16" fill="#3e4c59">…</text>
-<text x="300" y="244" text-anchor="middle" font-size="13" fill="#3e4c59">N个上下文patch token</text>
-<text x="620" y="244" text-anchor="middle" font-size="13" fill="#3e4c59">每个预测patch一个forecast_query查询槽</text>
+<text x="300" y="244" text-anchor="middle" font-size="13" fill="#3e4c59">N context patch tokens</text>
+<text x="620" y="244" text-anchor="middle" font-size="13" fill="#3e4c59">one forecast_query slot per forecast patch</text>
 <path d="M500,252 V290" fill="none" stroke="#52606d" stroke-width="1.6" marker-end="url(#arrow)"/>
 <rect x="40" y="294" width="104" height="52" rx="6" fill="#eef0f2" stroke="#9aa5b1" stroke-width="1.5"/>
-<text x="92" y="314.9" text-anchor="middle" font-size="14" font-weight="bold">第0层</text>
+<text x="92" y="314.9" text-anchor="middle" font-size="14" font-weight="bold">Layer 0</text>
 <text x="92" y="334.9" text-anchor="middle" font-size="13">time</text>
 <rect x="156" y="294" width="104" height="52" rx="6" fill="#eef0f2" stroke="#9aa5b1" stroke-width="1.5"/>
-<text x="208" y="314.9" text-anchor="middle" font-size="14" font-weight="bold">第1层</text>
+<text x="208" y="314.9" text-anchor="middle" font-size="14" font-weight="bold">Layer 1</text>
 <text x="208" y="334.9" text-anchor="middle" font-size="13">time</text>
 <rect x="272" y="294" width="104" height="52" rx="6" fill="#eef0f2" stroke="#9aa5b1" stroke-width="1.5"/>
-<text x="324" y="314.9" text-anchor="middle" font-size="14" font-weight="bold">第2层</text>
+<text x="324" y="314.9" text-anchor="middle" font-size="14" font-weight="bold">Layer 2</text>
 <text x="324" y="334.9" text-anchor="middle" font-size="13">time</text>
 <rect x="388" y="294" width="104" height="52" rx="6" fill="#f1ebfb" stroke="#8b6cd1" stroke-width="1.5"/>
-<text x="440" y="314.9" text-anchor="middle" font-size="14" font-weight="bold">第3层</text>
+<text x="440" y="314.9" text-anchor="middle" font-size="14" font-weight="bold">Layer 3</text>
 <text x="440" y="334.9" text-anchor="middle" font-size="13">time→variate</text>
 <rect x="504" y="294" width="104" height="52" rx="6" fill="#eef0f2" stroke="#9aa5b1" stroke-width="1.5"/>
-<text x="556" y="314.9" text-anchor="middle" font-size="14" font-weight="bold">第4层</text>
+<text x="556" y="314.9" text-anchor="middle" font-size="14" font-weight="bold">Layer 4</text>
 <text x="556" y="334.9" text-anchor="middle" font-size="13">time</text>
 <rect x="620" y="294" width="104" height="52" rx="6" fill="#eef0f2" stroke="#9aa5b1" stroke-width="1.5"/>
-<text x="672" y="314.9" text-anchor="middle" font-size="14" font-weight="bold">第5层</text>
+<text x="672" y="314.9" text-anchor="middle" font-size="14" font-weight="bold">Layer 5</text>
 <text x="672" y="334.9" text-anchor="middle" font-size="13">time</text>
 <rect x="736" y="294" width="104" height="52" rx="6" fill="#eef0f2" stroke="#9aa5b1" stroke-width="1.5"/>
-<text x="788" y="314.9" text-anchor="middle" font-size="14" font-weight="bold">第6层</text>
+<text x="788" y="314.9" text-anchor="middle" font-size="14" font-weight="bold">Layer 6</text>
 <text x="788" y="334.9" text-anchor="middle" font-size="13">time</text>
 <rect x="852" y="294" width="104" height="52" rx="6" fill="#f1ebfb" stroke="#8b6cd1" stroke-width="1.5"/>
-<text x="904" y="314.9" text-anchor="middle" font-size="14" font-weight="bold">第7层</text>
+<text x="904" y="314.9" text-anchor="middle" font-size="14" font-weight="bold">Layer 7</text>
 <text x="904" y="334.9" text-anchor="middle" font-size="13">time→variate</text>
-<text x="500" y="370" text-anchor="middle" font-size="13" fill="#52606d">每个注意力子层与每层MLP的内部结构</text>
+<text x="500" y="370" text-anchor="middle" font-size="13" fill="#52606d">Inside of each attention sublayer and per-layer MLP</text>
 <rect x="40" y="380" width="920" height="72" rx="8" fill="none" stroke="#cbd2d9"/>
-<text x="52" y="398" text-anchor="start" font-size="12" fill="#3e4c59">注意力子层（5M共10个：time轴8个，variate轴2个）</text>
+<text x="52" y="398" text-anchor="start" font-size="12" fill="#3e4c59">Attention sublayer (10 in 5M: 8 on time axis, 2 on variate axis)</text>
 <rect x="55" y="404" width="100" height="38" rx="6" fill="#ffffff" stroke="#9aa5b1" stroke-width="1.5"/>
 <text x="105" y="427.55" text-anchor="middle" font-size="13">RMSNorm</text>
 <path d="M155,423 H173" fill="none" stroke="#52606d" stroke-width="1.6" marker-end="url(#arrow)"/>
@@ -74,18 +74,18 @@
 <text x="240" y="427.55" text-anchor="middle" font-size="13">wQKV 192→576</text>
 <path d="M305,423 H323" fill="none" stroke="#52606d" stroke-width="1.6" marker-end="url(#arrow)"/>
 <rect x="325" y="404" width="150" height="38" rx="6" fill="#ffffff" stroke="#9aa5b1" stroke-width="1.5"/>
-<text x="400" y="427.55" text-anchor="middle" font-size="13">部分RoPE（仅time）</text>
+<text x="400" y="427.55" text-anchor="middle" font-size="13">Partial RoPE (time only)</text>
 <path d="M475,423 H493" fill="none" stroke="#52606d" stroke-width="1.6" marker-end="url(#arrow)"/>
 <rect x="495" y="404" width="160" height="38" rx="6" fill="#ffffff" stroke="#9aa5b1" stroke-width="1.5"/>
-<text x="575" y="427.55" text-anchor="middle" font-size="13">掩码注意力 3头×64</text>
+<text x="575" y="427.55" text-anchor="middle" font-size="13">Masked attention 3 heads×64</text>
 <path d="M655,423 H673" fill="none" stroke="#52606d" stroke-width="1.6" marker-end="url(#arrow)"/>
 <rect x="675" y="404" width="140" height="38" rx="6" fill="#ffffff" stroke="#9aa5b1" stroke-width="1.5"/>
 <text x="745" y="427.55" text-anchor="middle" font-size="13">⊙ sigmoid(_gate)</text>
 <path d="M815,423 H833" fill="none" stroke="#52606d" stroke-width="1.6" marker-end="url(#arrow)"/>
 <rect x="835" y="404" width="110" height="38" rx="6" fill="#ffffff" stroke="#9aa5b1" stroke-width="1.5"/>
-<text x="890" y="427.55" text-anchor="middle" font-size="13">wO，加残差</text>
+<text x="890" y="427.55" text-anchor="middle" font-size="13">wO, add residual</text>
 <rect x="40" y="466" width="920" height="72" rx="8" fill="none" stroke="#cbd2d9"/>
-<text x="52" y="484" text-anchor="start" font-size="12" fill="#3e4c59">MLP（每层1个）</text>
+<text x="52" y="484" text-anchor="start" font-size="12" fill="#3e4c59">MLP (one per layer)</text>
 <rect x="55" y="490" width="100" height="38" rx="6" fill="#ffffff" stroke="#9aa5b1" stroke-width="1.5"/>
 <text x="105" y="513.55" text-anchor="middle" font-size="13">RMSNorm</text>
 <path d="M155,509 H173" fill="none" stroke="#52606d" stroke-width="1.6" marker-end="url(#arrow)"/>
@@ -93,13 +93,13 @@
 <text x="245" y="513.55" text-anchor="middle" font-size="13">w12 192→1024</text>
 <path d="M315,509 H333" fill="none" stroke="#52606d" stroke-width="1.6" marker-end="url(#arrow)"/>
 <rect x="335" y="490" width="190" height="38" rx="6" fill="#ffffff" stroke="#9aa5b1" stroke-width="1.5"/>
-<text x="430" y="513.55" text-anchor="middle" font-size="13">前半 × SiLU(后半)</text>
+<text x="430" y="513.55" text-anchor="middle" font-size="13">first half × SiLU(second half)</text>
 <path d="M525,509 H543" fill="none" stroke="#52606d" stroke-width="1.6" marker-end="url(#arrow)"/>
 <rect x="545" y="490" width="130" height="38" rx="6" fill="#ffffff" stroke="#9aa5b1" stroke-width="1.5"/>
 <text x="610" y="513.55" text-anchor="middle" font-size="13">w3 512→192</text>
 <path d="M675,509 H693" fill="none" stroke="#52606d" stroke-width="1.6" marker-end="url(#arrow)"/>
 <rect x="695" y="490" width="100" height="38" rx="6" fill="#ffffff" stroke="#9aa5b1" stroke-width="1.5"/>
-<text x="745" y="513.55" text-anchor="middle" font-size="13">加残差</text>
+<text x="745" y="513.55" text-anchor="middle" font-size="13">add residual</text>
 <path d="M100,538 V574" fill="none" stroke="#52606d" stroke-width="1.6" marker-end="url(#arrow)"/>
 <rect x="40" y="578" width="110" height="44" rx="6" fill="#e6f6ec" stroke="#3fa66a" stroke-width="1.5"/>
 <text x="95" y="604.9" text-anchor="middle" font-size="14">out_norm</text>
@@ -108,15 +108,15 @@
 <text x="260" y="604.9" text-anchor="middle" font-size="14">head 192→768→672</text>
 <path d="M350,600 H368" fill="none" stroke="#52606d" stroke-width="1.6" marker-end="url(#arrow)"/>
 <rect x="370" y="578" width="120" height="44" rx="6" fill="#e6f6ec" stroke="#3fa66a" stroke-width="1.5"/>
-<text x="430" y="604.9" text-anchor="middle" font-size="14">重排 (32, 21)</text>
+<text x="430" y="604.9" text-anchor="middle" font-size="14">Reshape (32, 21)</text>
 <path d="M490,600 H508" fill="none" stroke="#52606d" stroke-width="1.6" marker-end="url(#arrow)"/>
 <rect x="510" y="578" width="120" height="44" rx="6" fill="#e6f6ec" stroke="#3fa66a" stroke-width="1.5"/>
-<text x="570" y="604.9" text-anchor="middle" font-size="14">单调分位数</text>
+<text x="570" y="604.9" text-anchor="middle" font-size="14">Monotone quantiles</text>
 <path d="M630,600 H648" fill="none" stroke="#52606d" stroke-width="1.6" marker-end="url(#arrow)"/>
 <rect x="650" y="578" width="150" height="44" rx="6" fill="#e6f6ec" stroke="#3fa66a" stroke-width="1.5"/>
-<text x="725" y="604.9" text-anchor="middle" font-size="14">sinh，×scale + loc</text>
+<text x="725" y="604.9" text-anchor="middle" font-size="14">sinh, ×scale + loc</text>
 <path d="M800,600 H818" fill="none" stroke="#52606d" stroke-width="1.6" marker-end="url(#arrow)"/>
 <rect x="820" y="578" width="150" height="44" rx="6" fill="#fdf0e1" stroke="#e8a33d" stroke-width="1.5"/>
-<text x="895" y="604.9" text-anchor="middle" font-size="14">分位数 (V, H, 21)</text>
-<text x="500" y="650" text-anchor="middle" font-size="12" fill="#52606d">维度取自本地5M发布配置：patch_size=32，d_model=192，3头，mlp_hidden_dim=512，21个分位点</text>
+<text x="895" y="604.9" text-anchor="middle" font-size="14">Quantiles (V, H, 21)</text>
+<text x="500" y="650" text-anchor="middle" font-size="12" fill="#52606d">Dims from the local 5M release config: patch_size=32, d_model=192, 3 heads, mlp_hidden_dim=512, 21 quantile points</text>
 </svg>

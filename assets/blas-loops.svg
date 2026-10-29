@@ -1,47 +1,47 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 510" width="940" height="510" font-family="Microsoft YaHei, PingFang SC, Noto Sans CJK SC, sans-serif" font-size="14">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 510" width="940" height="510" font-family="Helvetica, Arial, sans-serif" font-size="14">
 <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#555"/></marker></defs>
 <rect x="0" y="0" width="940" height="510" fill="#fcfcfa"/>
-<text x="470" y="30" text-anchor="middle" font-size="18" fill="#222" font-weight="bold">BLIS式五层循环与数据驻留层级</text>
+<text x="470" y="30" text-anchor="middle" font-size="18" fill="#222" font-weight="bold">BLIS-style 5-Level Loops and Data Residency Hierarchy</text>
 <rect x="30" y="55" width="470" height="52" rx="6" fill="#e8eef7" stroke="#666" stroke-width="1.2"/>
-<text x="265" y="77.4" text-anchor="middle" font-size="15" font-weight="bold" fill="#222">for jc in N，步长NC</text>
-<text x="265" y="95.4" text-anchor="middle" font-size="14" fill="#222">预打包权重时NC取整个N</text>
+<text x="265" y="77.4" text-anchor="middle" font-size="15" font-weight="bold" fill="#222">for jc in N, step NC</text>
+<text x="265" y="95.4" text-anchor="middle" font-size="14" fill="#222">With pre-packed weights NC takes all of N</text>
 <rect x="640" y="61" width="280" height="40" rx="6" fill="#f3f3ef" stroke="#aaa" stroke-width="1.2"/>
-<text x="780" y="86.4" text-anchor="middle" font-size="14" fill="#222">B的列块</text>
+<text x="780" y="86.4" text-anchor="middle" font-size="14" fill="#222">Column block of B</text>
 <line x1="500" y1="81" x2="638" y2="81" stroke="#aaa" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
 <line x1="50" y1="107" x2="78" y2="125" stroke="#555" stroke-width="1.4" marker-end="url(#arrow)"/>
 <rect x="58" y="125" width="460" height="52" rx="6" fill="#e8eef7" stroke="#666" stroke-width="1.2"/>
-<text x="288" y="147.4" text-anchor="middle" font-size="15" font-weight="bold" fill="#222">for pc in K，步长KC=256</text>
-<text x="288" y="165.4" text-anchor="middle" font-size="14" fill="#222">取出B的KC×NC面板</text>
+<text x="288" y="147.4" text-anchor="middle" font-size="15" font-weight="bold" fill="#222">for pc in K, step KC=256</text>
+<text x="288" y="165.4" text-anchor="middle" font-size="14" fill="#222">Fetch KC x NC panel of B</text>
 <rect x="640" y="131" width="280" height="40" rx="6" fill="#f3f3ef" stroke="#aaa" stroke-width="1.2"/>
-<text x="780" y="156.4" text-anchor="middle" font-size="14" fill="#222">预打包B常驻L2/L3</text>
+<text x="780" y="156.4" text-anchor="middle" font-size="14" fill="#222">Pre-packed B resides in L2/L3</text>
 <line x1="518" y1="151" x2="638" y2="151" stroke="#aaa" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
 <line x1="78" y1="177" x2="106" y2="195" stroke="#555" stroke-width="1.4" marker-end="url(#arrow)"/>
 <rect x="86" y="195" width="450" height="52" rx="6" fill="#e8eef7" stroke="#666" stroke-width="1.2"/>
-<text x="311" y="217.4" text-anchor="middle" font-size="15" font-weight="bold" fill="#222">for ic in M，步长MC=120</text>
-<text x="311" y="235.4" text-anchor="middle" font-size="14" fill="#222">把A的MC×KC块打包成6行微面板</text>
+<text x="311" y="217.4" text-anchor="middle" font-size="15" font-weight="bold" fill="#222">for ic in M, step MC=120</text>
+<text x="311" y="235.4" text-anchor="middle" font-size="14" fill="#222">Pack MC x KC block of A into 6-row micro-panels</text>
 <rect x="640" y="201" width="280" height="40" rx="6" fill="#f3f3ef" stroke="#aaa" stroke-width="1.2"/>
-<text x="780" y="226.4" text-anchor="middle" font-size="14" fill="#222">打包A约120KB，驻留L2</text>
+<text x="780" y="226.4" text-anchor="middle" font-size="14" fill="#222">Packed A ~120KB, resides in L2</text>
 <line x1="536" y1="221" x2="638" y2="221" stroke="#aaa" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
 <line x1="106" y1="247" x2="134" y2="265" stroke="#555" stroke-width="1.4" marker-end="url(#arrow)"/>
 <rect x="114" y="265" width="440" height="52" rx="6" fill="#e8eef7" stroke="#666" stroke-width="1.2"/>
-<text x="334" y="287.4" text-anchor="middle" font-size="15" font-weight="bold" fill="#222">for jr in NC，步长16</text>
-<text x="334" y="305.4" text-anchor="middle" font-size="14" fill="#222">选中B的KC×16微面板</text>
+<text x="334" y="287.4" text-anchor="middle" font-size="15" font-weight="bold" fill="#222">for jr in NC, step 16</text>
+<text x="334" y="305.4" text-anchor="middle" font-size="14" fill="#222">Select KC x 16 micro-panel of B</text>
 <rect x="640" y="271" width="280" height="40" rx="6" fill="#f3f3ef" stroke="#aaa" stroke-width="1.2"/>
-<text x="780" y="296.4" text-anchor="middle" font-size="14" fill="#222">16KB，驻留L1</text>
+<text x="780" y="296.4" text-anchor="middle" font-size="14" fill="#222">16KB, resides in L1</text>
 <line x1="554" y1="291" x2="638" y2="291" stroke="#aaa" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
 <line x1="134" y1="317" x2="162" y2="335" stroke="#555" stroke-width="1.4" marker-end="url(#arrow)"/>
 <rect x="142" y="335" width="430" height="52" rx="6" fill="#e8eef7" stroke="#666" stroke-width="1.2"/>
-<text x="357" y="357.4" text-anchor="middle" font-size="15" font-weight="bold" fill="#222">for ir in MC，步长6</text>
-<text x="357" y="375.4" text-anchor="middle" font-size="14" fill="#222">选中A的6×KC微面板</text>
+<text x="357" y="357.4" text-anchor="middle" font-size="15" font-weight="bold" fill="#222">for ir in MC, step 6</text>
+<text x="357" y="375.4" text-anchor="middle" font-size="14" fill="#222">Select 6 x KC micro-panel of A</text>
 <rect x="640" y="341" width="280" height="40" rx="6" fill="#f3f3ef" stroke="#aaa" stroke-width="1.2"/>
-<text x="780" y="366.4" text-anchor="middle" font-size="14" fill="#222">6KB，流式读取</text>
+<text x="780" y="366.4" text-anchor="middle" font-size="14" fill="#222">6KB, streaming read</text>
 <line x1="572" y1="361" x2="638" y2="361" stroke="#aaa" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
 <line x1="162" y1="387" x2="190" y2="405" stroke="#555" stroke-width="1.4" marker-end="url(#arrow)"/>
 <rect x="170" y="405" width="420" height="52" rx="6" fill="#f7e9ea" stroke="#666" stroke-width="1.2"/>
-<text x="380" y="427.4" text-anchor="middle" font-size="15" font-weight="bold" fill="#222">微内核：C[6×16] += A[6×KC]·B[KC×16]</text>
-<text x="380" y="445.4" text-anchor="middle" font-size="14" fill="#222">每k步2次B加载、6次广播、12次FMA</text>
+<text x="380" y="427.4" text-anchor="middle" font-size="15" font-weight="bold" fill="#222">Microkernel: C[6x16] += A[6xKC] . B[KCx16]</text>
+<text x="380" y="445.4" text-anchor="middle" font-size="14" fill="#222">Per k-step: 2 B loads, 6 broadcasts, 12 FMA</text>
 <rect x="640" y="411" width="280" height="40" rx="6" fill="#f3f3ef" stroke="#aaa" stroke-width="1.2"/>
-<text x="780" y="436.4" text-anchor="middle" font-size="14" fill="#222">累加器全在寄存器</text>
+<text x="780" y="436.4" text-anchor="middle" font-size="14" fill="#222">All accumulators in registers</text>
 <line x1="590" y1="431" x2="638" y2="431" stroke="#aaa" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
-<text x="470" y="492" text-anchor="middle" font-size="13" fill="#555">外层循环决定复用：B面板被ic循环中的全部A块复用，A微面板被jr循环中的全部B微面板复用</text>
+<text x="470" y="492" text-anchor="middle" font-size="13" fill="#555">Outer loops determine reuse: B panels reused by all A blocks in ic loop, A micro-panels reused by all B micro-panels in jr loop</text>
 </svg>

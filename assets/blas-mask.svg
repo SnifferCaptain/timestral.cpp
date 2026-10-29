@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 840 481" width="840" height="481" font-family="Microsoft YaHei, PingFang SC, Noto Sans CJK SC, sans-serif" font-size="14">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 840 481" width="840" height="481" font-family="Helvetica, Arial, sans-serif" font-size="14">
 <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#555"/></marker></defs>
 <rect x="0" y="0" width="840" height="481" fill="#fcfcfa"/>
-<text x="420" y="30" text-anchor="middle" font-size="16" fill="#222" font-weight="bold">掩码按块分类（示意：48个slot，查询块6、键块8，键20至22为缺失patch）</text>
+<text x="420" y="30" text-anchor="middle" font-size="16" fill="#222" font-weight="bold">Mask block classification (schematic: 48 slots, query block 6, key block 8, keys 20-22 are missing patches)</text>
 <rect x="60" y="70" width="7" height="7" fill="#4a7cc0" stroke="#ddd" stroke-width="0.3"/>
 <rect x="67" y="70" width="7" height="7" fill="#ffffff" stroke="#ddd" stroke-width="0.3"/>
 <rect x="74" y="70" width="7" height="7" fill="#ffffff" stroke="#ddd" stroke-width="0.3"/>
@@ -2354,14 +2354,14 @@
 <rect x="638" y="364" width="56" height="42" fill="#9cc59a" stroke="#666" stroke-width="0.8"/>
 <rect x="694" y="364" width="56" height="42" fill="#9cc59a" stroke="#666" stroke-width="0.8"/>
 <rect x="750" y="364" width="56" height="42" fill="#f0b46a" stroke="#666" stroke-width="0.8"/>
-<text x="60" y="60" text-anchor="start" font-size="13" fill="#222">逐元素掩码（蓝色为允许）</text>
-<text x="470" y="60" text-anchor="start" font-size="13" fill="#222">块分类结果</text>
+<text x="60" y="60" text-anchor="start" font-size="13" fill="#222">Elementwise mask (blue = allowed)</text>
+<text x="470" y="60" text-anchor="start" font-size="13" fill="#222">Block classification result</text>
 <rect x="470" y="424" width="16" height="16" fill="#dddddd" stroke="#666"/>
-<text x="492" y="437" text-anchor="start" font-size="13" fill="#222">Empty 18块</text>
+<text x="492" y="437" text-anchor="start" font-size="13" fill="#222">Empty: 18 blocks</text>
 <rect x="590" y="424" width="16" height="16" fill="#9cc59a" stroke="#666"/>
-<text x="612" y="437" text-anchor="start" font-size="13" fill="#222">Full 14块</text>
+<text x="612" y="437" text-anchor="start" font-size="13" fill="#222">Full: 14 blocks</text>
 <rect x="710" y="424" width="16" height="16" fill="#f0b46a" stroke="#666"/>
-<text x="732" y="437" text-anchor="start" font-size="13" fill="#222">Partial 16块</text>
-<text x="60" y="437" text-anchor="start" font-size="13" fill="#222">Empty跳过QK与PV，Full不展开掩码，Partial才逐元素屏蔽</text>
-<text x="60" y="460" text-anchor="start" font-size="13" fill="#555">缺失patch让对角线下方本应Full的块变成Partial，因此不能用纯三角掩码代替</text>
+<text x="732" y="437" text-anchor="start" font-size="13" fill="#222">Partial: 16 blocks</text>
+<text x="60" y="437" text-anchor="start" font-size="13" fill="#222">Empty skips QK and PV, Full does not expand mask, Partial masks elementwise</text>
+<text x="60" y="460" text-anchor="start" font-size="13" fill="#555">Missing patches turn blocks below the diagonal from Full to Partial, so a pure triangular mask cannot substitute</text>
 </svg>

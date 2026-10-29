@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="920" height="540" viewBox="0 0 920 540" font-family="Microsoft YaHei, PingFang SC, Noto Sans CJK SC, sans-serif" font-size="14" fill="#1f2933">
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="540" viewBox="0 0 920 540" font-family="Helvetica, Arial, sans-serif" font-size="14" fill="#1f2933">
 <defs>
 <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#52606d"/></marker>
 </defs>
 <rect x="0" y="0" width="920" height="540" fill="#fafbfc"/>
-<text x="460" y="34" text-anchor="middle" font-size="20" font-weight="bold">time轴掩码示例（无协变量，attend_missing_patches=true）</text>
+<text x="460" y="34" text-anchor="middle" font-size="20" font-weight="bold">time-axis mask example (no covariates, attend_missing_patches=true)</text>
 <text x="368" y="82" text-anchor="middle" font-size="13" fill="#3e4c59" font-weight="bold">key</text>
 <text x="120" y="303" text-anchor="middle" font-size="13" fill="#3e4c59" font-weight="bold">query</text>
 <text x="228" y="116" text-anchor="middle" font-size="14" fill="#1f2933">E0</text>
@@ -19,8 +19,8 @@
 <text x="188" y="387" text-anchor="end" font-size="14" fill="#1f2933">D0</text>
 <text x="508" y="116" text-anchor="middle" font-size="14" fill="#1f2933">D1</text>
 <text x="188" y="443" text-anchor="end" font-size="14" fill="#1f2933">D1</text>
-<text x="228" y="96" text-anchor="middle" font-size="11" fill="#c0392b">无观测</text>
-<text x="340" y="96" text-anchor="middle" font-size="11" fill="#b7791f">缺失</text>
+<text x="228" y="96" text-anchor="middle" font-size="11" fill="#c0392b">no obs</text>
+<text x="340" y="96" text-anchor="middle" font-size="11" fill="#b7791f">missing</text>
 <rect x="202" y="132" width="52" height="52" rx="4" fill="#6fa3f7"/>
 <rect x="258" y="132" width="52" height="52" rx="4" fill="#e4e7eb"/>
 <rect x="314" y="132" width="52" height="52" rx="4" fill="#e4e7eb"/>
@@ -59,18 +59,18 @@
 <rect x="482" y="412" width="52" height="52" rx="4" fill="#6fa3f7"/>
 <line x1="424" y1="126" x2="424" y2="470" stroke="#52606d" stroke-width="2" stroke-dasharray="5 4"/>
 <line x1="196" y1="354" x2="540" y2="354" stroke="#52606d" stroke-width="2" stroke-dasharray="5 4"/>
-<text x="312" y="492" text-anchor="middle" font-size="12" fill="#3e4c59">编码流（上下文patch）</text>
-<text x="480" y="492" text-anchor="middle" font-size="12" fill="#3e4c59">解码流（预测槽）</text>
+<text x="312" y="492" text-anchor="middle" font-size="12" fill="#3e4c59">Encoder stream (context patches)</text>
+<text x="480" y="492" text-anchor="middle" font-size="12" fill="#3e4c59">Decoder stream (forecast slots)</text>
 <rect x="580" y="120" width="22" height="22" rx="4" fill="#6fa3f7"/>
-<text x="612" y="137" text-anchor="start" font-size="14" fill="#3e4c59">允许关注</text>
+<text x="612" y="137" text-anchor="start" font-size="14" fill="#3e4c59">allowed to attend</text>
 <rect x="710" y="120" width="22" height="22" rx="4" fill="#e4e7eb"/>
-<text x="742" y="137" text-anchor="start" font-size="14" fill="#3e4c59">屏蔽</text>
-<text x="580" y="182" text-anchor="start" font-size="13" fill="#3e4c59">E0：该行尚未出现观测，不能作为key（自身除外）</text>
-<text x="580" y="210" text-anchor="start" font-size="13" fill="#3e4c59">E2：本patch全部缺失，但此前已有观测，</text>
-<text x="580" y="238" text-anchor="start" font-size="13" fill="#3e4c59">        attend_missing_patches=true时仍可作为key</text>
-<text x="580" y="266" text-anchor="start" font-size="13" fill="#3e4c59">编码query：只读不晚于自身的有效patch</text>
-<text x="580" y="294" text-anchor="start" font-size="13" fill="#3e4c59">解码query：读全部有效上下文patch，</text>
-<text x="580" y="322" text-anchor="start" font-size="13" fill="#3e4c59">        以及不晚于自身的解码槽</text>
-<text x="580" y="350" text-anchor="start" font-size="13" fill="#3e4c59">variate轴另用同组、同slot的行间掩码</text>
-<text x="460" y="525" text-anchor="middle" font-size="12" fill="#52606d">行为query，列为key；规则对应transformer.cpp中的timeAllowed，加入协变量后还有双流与known行的额外规则</text>
+<text x="742" y="137" text-anchor="start" font-size="14" fill="#3e4c59">masked</text>
+<text x="580" y="182" text-anchor="start" font-size="13" fill="#3e4c59">E0: no obs in that row yet, cannot serve as key (self excepted)</text>
+<text x="580" y="210" text-anchor="start" font-size="13" fill="#3e4c59">E2: this patch is fully missing, but earlier obs exist,</text>
+<text x="580" y="238" text-anchor="start" font-size="13" fill="#3e4c59">        still usable as key when attend_missing_patches=true</text>
+<text x="580" y="266" text-anchor="start" font-size="13" fill="#3e4c59">Encoder queries: only read valid patches up to themselves</text>
+<text x="580" y="294" text-anchor="start" font-size="13" fill="#3e4c59">Decoder queries: read all valid context patches,</text>
+<text x="580" y="322" text-anchor="start" font-size="13" fill="#3e4c59">        plus decoder slots up to themselves</text>
+<text x="580" y="350" text-anchor="start" font-size="13" fill="#3e4c59">variate axis uses a cross-row mask within the same group and slot</text>
+<text x="460" y="525" text-anchor="middle" font-size="12" fill="#52606d">Rows are queries, columns keys; rules match timeAllowed in transformer.cpp; with covariates added there are extra dual-stream and known-row rules</text>
 </svg>

@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 315" width="960" height="315" font-family="Microsoft YaHei, PingFang SC, Noto Sans CJK SC, sans-serif" font-size="13">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 315" width="960" height="315" font-family="Helvetica, Arial, sans-serif" font-size="13">
 <rect x="0" y="0" width="960" height="315" fill="#fcfcfa"/>
-<text x="480" y="30" text-anchor="middle" font-size="18" fill="#222" font-weight="bold">单线程结果：后端对比与注意力优化过程</text>
-<text x="40" y="62" text-anchor="start" font-size="14" fill="#222" font-weight="bold">32768样本forward耗时（ms，对数刻度）</text>
+<text x="480" y="30" text-anchor="middle" font-size="18" fill="#222" font-weight="bold">Single-thread results: backend comparison and attention optimization process</text>
+<text x="40" y="62" text-anchor="start" font-size="14" fill="#222" font-weight="bold">32768-sample forward time (ms, log scale)</text>
 <text x="102" y="101" text-anchor="end" font-size="13" fill="#222">reference</text>
 <rect x="110" y="80" width="310.0" height="30" fill="#bbbbbb" stroke="#777"/>
 <text x="425.9910819418696" y="101" text-anchor="start" font-size="13" fill="#222">4424.1</text>
@@ -18,21 +18,21 @@
 <text x="110" y="274" text-anchor="middle" font-size="11" fill="#666">100</text>
 <line x1="298.34941122168925" y1="76" x2="298.34941122168925" y2="258" stroke="#ccc" stroke-dasharray="3 3"/>
 <text x="298.34941122168925" y="274" text-anchor="middle" font-size="11" fill="#666">1000</text>
-<text x="500" y="62" text-anchor="start" font-size="14" fill="#222" font-weight="bold">单头1028因果注意力耗时（ms）</text>
-<text x="682" y="98" text-anchor="end" font-size="13" fill="#222">初版</text>
+<text x="500" y="62" text-anchor="start" font-size="14" fill="#222" font-weight="bold">Single-head 1028 causal attention time (ms)</text>
+<text x="682" y="98" text-anchor="end" font-size="13" fill="#222">Initial</text>
 <rect x="690" y="80" width="206.5" height="24" fill="#bbbbbb" stroke="#777"/>
 <text x="902.4615384615385" y="98" text-anchor="start" font-size="13" fill="#222">6.10</text>
-<text x="682" y="134" text-anchor="end" font-size="13" fill="#222">向量softmax+字节掩码</text>
+<text x="682" y="134" text-anchor="end" font-size="13" fill="#222">Vector softmax + byte mask</text>
 <rect x="690" y="116" width="130.6" height="24" fill="#cfe0f3" stroke="#777"/>
 <text x="826.6461538461538" y="134" text-anchor="start" font-size="13" fill="#222">3.86</text>
-<text x="682" y="170" text-anchor="end" font-size="13" fill="#222">几何判定Full</text>
+<text x="682" y="170" text-anchor="end" font-size="13" fill="#222">Geometric Full detection</text>
 <rect x="690" y="152" width="83.3" height="24" fill="#cfe0f3" stroke="#777"/>
 <text x="779.2615384615385" y="170" text-anchor="start" font-size="13" fill="#222">2.46</text>
-<text x="682" y="206" text-anchor="end" font-size="13" fill="#222">K/V打包去除法</text>
+<text x="682" y="206" text-anchor="end" font-size="13" fill="#222">K/V packing removal</text>
 <rect x="690" y="188" width="76.2" height="24" fill="#cfe0f3" stroke="#777"/>
 <text x="772.1538461538462" y="206" text-anchor="start" font-size="13" fill="#222">2.25</text>
-<text x="682" y="242" text-anchor="end" font-size="13" fill="#222">收尾</text>
+<text x="682" y="242" text-anchor="end" font-size="13" fill="#222">Final</text>
 <rect x="690" y="224" width="79.5" height="24" fill="#cfe0f3" stroke="#777"/>
 <text x="775.5384615384615" y="242" text-anchor="start" font-size="13" fill="#222">2.35</text>
-<text x="480" y="300" text-anchor="middle" font-size="12" fill="#555">数字为上一轮验收的同机记录（7735H、MSVC 19.36），重复测量的波动见正文</text>
+<text x="480" y="300" text-anchor="middle" font-size="12" fill="#555">Numbers are same-machine records from the previous acceptance round (7735H, MSVC 19.36); see text for measurement variance</text>
 </svg>

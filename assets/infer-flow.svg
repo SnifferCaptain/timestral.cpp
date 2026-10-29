@@ -1,44 +1,44 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="640" viewBox="0 0 1000 640" font-family="Microsoft YaHei, PingFang SC, Noto Sans CJK SC, sans-serif" font-size="14" fill="#1f2933">
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="640" viewBox="0 0 1000 640" font-family="Helvetica, Arial, sans-serif" font-size="14" fill="#1f2933">
 <defs>
 <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#52606d"/></marker>
 </defs>
 <rect x="0" y="0" width="1000" height="640" fill="#fafbfc"/>
-<text x="500" y="34" text-anchor="middle" font-size="20" font-weight="bold">一次请求从提交到结果</text>
+<text x="500" y="34" text-anchor="middle" font-size="20" font-weight="bold">One request from submission to result</text>
 <rect x="40" y="64" width="270" height="126" rx="6" fill="#e8f1fd" stroke="#4c8bf5" stroke-width="1.5"/>
-<text x="175" y="91.9" text-anchor="middle" font-size="14" font-weight="bold">调用线程：submit</text>
+<text x="175" y="91.9" text-anchor="middle" font-size="14" font-weight="bold">Caller thread: submit</text>
 <text x="175" y="111.9" text-anchor="middle" font-size="13">Service::prepare</text>
-<text x="175" y="131.9" text-anchor="middle" font-size="13">校验历史、间隔与FP32范围</text>
-<text x="175" y="151.9" text-anchor="middle" font-size="13">推断步数，按maxContext裁剪</text>
-<text x="175" y="171.9" text-anchor="middle" font-size="13">判定能否使用分页网格</text>
+<text x="175" y="131.9" text-anchor="middle" font-size="13">Validate history, interval, FP32 range</text>
+<text x="175" y="151.9" text-anchor="middle" font-size="13">Infer steps, trim by maxContext</text>
+<text x="175" y="171.9" text-anchor="middle" font-size="13">Decide whether paged grid applies</text>
 <rect x="360" y="64" width="280" height="126" rx="6" fill="#fdf0e1" stroke="#e8a33d" stroke-width="1.5"/>
-<text x="500" y="91.9" text-anchor="middle" font-size="14" font-weight="bold">等待队列</text>
-<text x="500" y="111.9" text-anchor="middle" font-size="13">Fifo：队首逐条执行</text>
-<text x="500" y="131.9" text-anchor="middle" font-size="13">Mailbox：同源只留最新未开始</text>
-<text x="500" y="151.9" text-anchor="middle" font-size="13">Continuous：队首起FCFS拼批</text>
-<text x="500" y="171.9" text-anchor="middle" font-size="13">每轮至多maxBatch条，不抢占</text>
+<text x="500" y="91.9" text-anchor="middle" font-size="14" font-weight="bold">Wait queue</text>
+<text x="500" y="111.9" text-anchor="middle" font-size="13">Fifo: run front one at a time</text>
+<text x="500" y="131.9" text-anchor="middle" font-size="13">Mailbox: keep only newest unstarted per source</text>
+<text x="500" y="151.9" text-anchor="middle" font-size="13">Continuous: FCFS batching from front</text>
+<text x="500" y="171.9" text-anchor="middle" font-size="13">At most maxBatch per round, no preemption</text>
 <rect x="690" y="64" width="270" height="126" rx="6" fill="#f1ebfb" stroke="#8b6cd1" stroke-width="1.5"/>
-<text x="825" y="101.9" text-anchor="middle" font-size="14" font-weight="bold">工作线程：executeRound</text>
-<text x="825" y="121.9" text-anchor="middle" font-size="13">单条 → executeOne</text>
-<text x="825" y="141.9" text-anchor="middle" font-size="13">页表相同的多条 → executeShared</text>
-<text x="825" y="161.9" text-anchor="middle" font-size="13">未命中的多条 → executeBatch</text>
+<text x="825" y="101.9" text-anchor="middle" font-size="14" font-weight="bold">Worker thread: executeRound</text>
+<text x="825" y="121.9" text-anchor="middle" font-size="13">Single → executeOne</text>
+<text x="825" y="141.9" text-anchor="middle" font-size="13">Shared page table → executeShared</text>
+<text x="825" y="161.9" text-anchor="middle" font-size="13">Misses, multiple → executeBatch</text>
 <path d="M310,127 H356" fill="none" stroke="#52606d" stroke-width="1.6" marker-end="url(#arrow)"/>
 <path d="M640,127 H686" fill="none" stroke="#52606d" stroke-width="1.6" marker-end="url(#arrow)"/>
 <rect x="40" y="240" width="290" height="120" rx="6" fill="#e6f6ec" stroke="#3fa66a" stroke-width="1.5"/>
-<text x="185" y="274.9" text-anchor="middle" font-size="14" font-weight="bold">runStreamed（分页网格）</text>
-<text x="185" y="294.9" text-anchor="middle" font-size="13">scanPrefix沿页键命中前缀</text>
-<text x="185" y="314.9" text-anchor="middle" font-size="13">ensureRoom回收零引用LRU页</text>
-<text x="185" y="334.9" text-anchor="middle" font-size="13">appendPages编码缺页（prefill）</text>
+<text x="185" y="274.9" text-anchor="middle" font-size="14" font-weight="bold">runStreamed (paged grid)</text>
+<text x="185" y="294.9" text-anchor="middle" font-size="13">scanPrefix matches prefix along page key</text>
+<text x="185" y="314.9" text-anchor="middle" font-size="13">ensureRoom reclaims zero-ref LRU pages</text>
+<text x="185" y="334.9" text-anchor="middle" font-size="13">appendPages encodes missing pages (prefill)</text>
 <rect x="355" y="240" width="290" height="120" rx="6" fill="#eef0f2" stroke="#9aa5b1" stroke-width="1.5"/>
 <text x="500" y="274.9" text-anchor="middle" font-size="14" font-weight="bold">runFull / executeBatch</text>
-<text x="500" y="294.9" text-anchor="middle" font-size="13">页池占满、网格不满足条件</text>
-<text x="500" y="314.9" text-anchor="middle" font-size="13">或冷请求拼批</text>
-<text x="500" y="334.9" text-anchor="middle" font-size="13">整条上下文全量前向</text>
+<text x="500" y="294.9" text-anchor="middle" font-size="13">Page pool full, grid condition unmet</text>
+<text x="500" y="314.9" text-anchor="middle" font-size="13">or batching cold requests</text>
+<text x="500" y="334.9" text-anchor="middle" font-size="13">Full forward over entire context</text>
 <rect x="670" y="240" width="290" height="120" rx="6" fill="#e6f6ec" stroke="#3fa66a" stroke-width="1.5"/>
 <text x="815" y="274.9" text-anchor="middle" font-size="14" font-weight="bold">executeShared</text>
-<text x="815" y="294.9" text-anchor="middle" font-size="13">组内共用一套V行页表</text>
+<text x="815" y="294.9" text-anchor="middle" font-size="13">Group shares one set of V row page tables</text>
 <text x="815" y="314.9" text-anchor="middle" font-size="13">decodePagesShared</text>
-<text x="815" y="334.9" text-anchor="middle" font-size="13">按row % V读取前缀K/V</text>
+<text x="815" y="334.9" text-anchor="middle" font-size="13">Read prefix K/V by row % V</text>
 <path d="M825,190 V236" fill="none" stroke="#52606d" stroke-width="1.6" marker-end="url(#arrow)"/>
 <path d="M760,190 C700,215 300,200 185,236" fill="none" stroke="#52606d" stroke-width="1.6" marker-end="url(#arrow)"/>
 <path d="M790,190 C760,215 520,210 500,236" fill="none" stroke="#52606d" stroke-width="1.6" marker-end="url(#arrow)"/>
@@ -47,23 +47,23 @@
 <path d="M815,360 V398" fill="none" stroke="#52606d" stroke-width="1.6" marker-end="url(#arrow)"/>
 <rect x="40" y="402" width="920" height="86" rx="6" fill="#ffffff" stroke="#52606d" stroke-width="1.5"/>
 <text x="500" y="429.9" text-anchor="middle" font-size="14" font-weight="bold">Engine::computePrediction → rawForecast</text>
-<text x="500" y="449.9" text-anchor="middle" font-size="13">上下文左填充到patch整数倍；每块patchBatch个patch（默认16，钳制到block_size）</text>
-<text x="500" y="469.9" text-anchor="middle" font-size="13">分页时decodePages，否则predictBlock；advancing refine后把中位数回灌为下一块上下文</text>
+<text x="500" y="449.9" text-anchor="middle" font-size="13">Left-pad context to a multiple of patches; patchBatch patches per block (default 16, clamped to block_size)</text>
+<text x="500" y="469.9" text-anchor="middle" font-size="13">decodePages when paged, else predictBlock; after advancing refine, feed medians back as next block's context</text>
 <path d="M500,488 V528" fill="none" stroke="#52606d" stroke-width="1.6" marker-end="url(#arrow)"/>
 <rect x="40" y="532" width="250" height="64" rx="6" fill="#ffffff" stroke="#9aa5b1" stroke-width="1.5"/>
-<text x="165" y="558.9" text-anchor="middle" font-size="14" font-weight="bold">范围cap</text>
-<text x="165" y="578.9" text-anchor="middle" font-size="13">初始窗口min/max ± 1e4×scale</text>
+<text x="165" y="558.9" text-anchor="middle" font-size="14" font-weight="bold">Range cap</text>
+<text x="165" y="578.9" text-anchor="middle" font-size="13">Initial window min/max ± 1e4×scale</text>
 <path d="M290,564 H306" fill="none" stroke="#52606d" stroke-width="1.6" marker-end="url(#arrow)"/>
 <rect x="310" y="532" width="250" height="64" rx="6" fill="#ffffff" stroke="#9aa5b1" stroke-width="1.5"/>
-<text x="435" y="558.9" text-anchor="middle" font-size="14" font-weight="bold">对称平均</text>
-<text x="435" y="578.9" text-anchor="middle" font-size="13">取负输入再前向，不走缓存</text>
+<text x="435" y="558.9" text-anchor="middle" font-size="14" font-weight="bold">Symmetric averaging</text>
+<text x="435" y="578.9" text-anchor="middle" font-size="13">Forward on negated input, bypasses cache</text>
 <path d="M560,564 H576" fill="none" stroke="#52606d" stroke-width="1.6" marker-end="url(#arrow)"/>
 <rect x="580" y="532" width="170" height="64" rx="6" fill="#ffffff" stroke="#9aa5b1" stroke-width="1.5"/>
-<text x="665" y="558.9" text-anchor="middle" font-size="14" font-weight="bold">非负截断</text>
-<text x="665" y="578.9" text-anchor="middle" font-size="13">观测全非负的通道</text>
+<text x="665" y="558.9" text-anchor="middle" font-size="14" font-weight="bold">Non-negative clip</text>
+<text x="665" y="578.9" text-anchor="middle" font-size="13">Channels with all non-negative obs</text>
 <path d="M750,564 H766" fill="none" stroke="#52606d" stroke-width="1.6" marker-end="url(#arrow)"/>
 <rect x="770" y="532" width="190" height="64" rx="6" fill="#fdf0e1" stroke="#e8a33d" stroke-width="1.5"/>
 <text x="865" y="558.9" text-anchor="middle" font-size="14" font-weight="bold">Result</text>
-<text x="865" y="578.9" text-anchor="middle" font-size="13">分位数、observed、计时、页数</text>
-<text x="500" y="624" text-anchor="middle" font-size="12" fill="#52606d">对应源码：timestral/utils/service.cpp、engine.cpp、postprocess.cpp</text>
+<text x="865" y="578.9" text-anchor="middle" font-size="13">Quantiles, observed, timing, page count</text>
+<text x="500" y="624" text-anchor="middle" font-size="12" fill="#52606d">Source: timestral/utils/service.cpp, engine.cpp, postprocess.cpp</text>
 </svg>

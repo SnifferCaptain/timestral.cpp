@@ -1,8 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 420" width="960" height="420" font-family="Microsoft YaHei, PingFang SC, Noto Sans CJK SC, sans-serif" font-size="14">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 420" width="960" height="420" font-family="Helvetica, Arial, sans-serif" font-size="14">
 <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#555"/></marker></defs>
 <rect x="0" y="0" width="960" height="420" fill="#fcfcfa"/>
-<text x="470" y="30" text-anchor="middle" font-size="18" fill="#222" font-weight="bold">打包：从行主序矩阵到微内核的连续读取顺序</text>
-<text x="40" y="62" text-anchor="start" font-size="14" fill="#222" font-weight="bold">通用B示例（K×N，行主序）</text>
+<text x="470" y="30" text-anchor="middle" font-size="18" fill="#222" font-weight="bold">Packing: from row-major matrix to microkernel contiguous read order</text>
+<text x="40" y="62" text-anchor="start" font-size="14" fill="#222" font-weight="bold">Generic B example (K x N, row-major)</text>
 <rect x="40" y="72" width="14" height="14" fill="#cfe0f3" stroke="#999" stroke-width="0.5"/>
 <rect x="54" y="72" width="14" height="14" fill="#cfe0f3" stroke="#999" stroke-width="0.5"/>
 <rect x="68" y="72" width="14" height="14" fill="#cfe0f3" stroke="#999" stroke-width="0.5"/>
@@ -203,10 +203,10 @@
 <rect x="278" y="198" width="14" height="14" fill="#dcefd6" stroke="#999" stroke-width="0.5"/>
 <rect x="292" y="198" width="14" height="14" fill="#dcefd6" stroke="#999" stroke-width="0.5"/>
 <rect x="306" y="198" width="14" height="14" fill="#dcefd6" stroke="#999" stroke-width="0.5"/>
-<text x="40" y="230" text-anchor="start" font-size="12" fill="#555">按16列切成面板（图中缩为8列），末块零填充</text>
+<text x="40" y="230" text-anchor="start" font-size="12" fill="#555">Split into panels of 16 columns (shown as 8), last block zero-padded</text>
 <line x1="340" y1="140" x2="420" y2="140" stroke="#555" stroke-width="1.4" marker-end="url(#arrow)"/>
-<text x="380" y="128" text-anchor="middle" font-size="12" fill="#222">加载时一次</text>
-<text x="440" y="62" text-anchor="start" font-size="14" fill="#222" font-weight="bold">预打包B：面板i的K行×16列连续存放</text>
+<text x="380" y="128" text-anchor="middle" font-size="12" fill="#222">Once at load time</text>
+<text x="440" y="62" text-anchor="start" font-size="14" fill="#222" font-weight="bold">Pre-packed B: panel i stored as K rows x 16 cols contiguous</text>
 <rect x="440" y="72" width="112" height="14" fill="#cfe0f3" stroke="#999" stroke-width="0.5"/>
 <rect x="440" y="86" width="112" height="14" fill="#cfe0f3" stroke="#999" stroke-width="0.5"/>
 <rect x="440" y="100" width="112" height="14" fill="#cfe0f3" stroke="#999" stroke-width="0.5"/>
@@ -237,8 +237,8 @@
 <rect x="700" y="170" width="112" height="14" fill="#dcefd6" stroke="#999" stroke-width="0.5"/>
 <rect x="700" y="184" width="112" height="14" fill="#dcefd6" stroke="#999" stroke-width="0.5"/>
 <rect x="700" y="198" width="112" height="14" fill="#dcefd6" stroke="#999" stroke-width="0.5"/>
-<text x="440" y="230" text-anchor="start" font-size="12" fill="#555">微内核每k步顺序读64字节，地址严格递增，硬件预取友好</text>
-<text x="40" y="280" text-anchor="start" font-size="14" fill="#222" font-weight="bold">激活A（M×K，行主序）</text>
+<text x="440" y="230" text-anchor="start" font-size="12" fill="#555">Microkernel reads 64 bytes sequentially per k-step, strictly increasing addresses, hardware prefetch friendly</text>
+<text x="40" y="280" text-anchor="start" font-size="14" fill="#222" font-weight="bold">Activation A (M x K, row-major)</text>
 <rect x="40" y="290" width="14" height="14" fill="#efe8f6" stroke="#999" stroke-width="0.5"/>
 <rect x="54" y="290" width="14" height="14" fill="#efe8f6" stroke="#999" stroke-width="0.5"/>
 <rect x="68" y="290" width="14" height="14" fill="#efe8f6" stroke="#999" stroke-width="0.5"/>
@@ -336,8 +336,8 @@
 <rect x="180" y="388" width="14" height="14" fill="#f7e9ea" stroke="#999" stroke-width="0.5"/>
 <rect x="194" y="388" width="14" height="14" fill="#f7e9ea" stroke="#999" stroke-width="0.5"/>
 <line x1="340" y1="345" x2="420" y2="345" stroke="#555" stroke-width="1.4" marker-end="url(#arrow)"/>
-<text x="380" y="333" text-anchor="middle" font-size="12" fill="#222">每次调用</text>
-<text x="440" y="280" text-anchor="start" font-size="14" fill="#222" font-weight="bold">打包A：每6行一个面板，按[k][6]交错</text>
+<text x="380" y="333" text-anchor="middle" font-size="12" fill="#222">Per call</text>
+<text x="440" y="280" text-anchor="start" font-size="14" fill="#222" font-weight="bold">Packed A: one panel per 6 rows, interleaved as [k][6]</text>
 <rect x="440" y="290" width="14" height="14" fill="#efe8f6" stroke="#999" stroke-width="0.5"/>
 <text x="447" y="301" text-anchor="middle" font-size="9" fill="#222">0</text>
 <rect x="454" y="290" width="14" height="14" fill="#efe8f6" stroke="#999" stroke-width="0.5"/>
@@ -482,6 +482,6 @@
 <text x="923" y="319" text-anchor="middle" font-size="9" fill="#222">4</text>
 <rect x="930" y="308" width="14" height="14" fill="#efe8f6" stroke="#999" stroke-width="0.5"/>
 <text x="937" y="319" text-anchor="middle" font-size="9" fill="#222">5</text>
-<text x="440" y="380" text-anchor="start" font-size="12" fill="#555">数字为行号：k步p的6个A值相邻，供6次broadcast</text>
-<text x="440" y="400" text-anchor="start" font-size="12" fill="#555">RMSNorm在这一步按(input×inverse)×scale写入，不物化归一化矩阵</text>
+<text x="440" y="380" text-anchor="start" font-size="12" fill="#555">Numbers are row indices: 6 A values for k-step p are adjacent for 6 broadcasts</text>
+<text x="440" y="400" text-anchor="start" font-size="12" fill="#555">RMSNorm writes (input x inverse) x scale at this step, no materialized normalization matrix</text>
 </svg>

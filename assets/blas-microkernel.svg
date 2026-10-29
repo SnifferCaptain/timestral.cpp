@@ -1,8 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 390" width="860" height="390" font-family="Microsoft YaHei, PingFang SC, Noto Sans CJK SC, sans-serif" font-size="14">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 390" width="860" height="390" font-family="Helvetica, Arial, sans-serif" font-size="14">
 <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#555"/></marker></defs>
 <rect x="0" y="0" width="860" height="390" fill="#fcfcfa"/>
-<text x="430" y="30" text-anchor="middle" font-size="18" fill="#222" font-weight="bold">6×16微内核的寄存器分配（一个k步）</text>
-<text x="468" y="70" text-anchor="middle" font-size="13" fill="#222">B的一行：16个float = 2个YMM（b0、b1）</text>
+<text x="430" y="30" text-anchor="middle" font-size="18" fill="#222" font-weight="bold">6x16 Microkernel Register Allocation (one k-step)</text>
+<text x="468" y="70" text-anchor="middle" font-size="13" fill="#222">One row of B: 16 floats = 2 YMM (b0, b1)</text>
 <rect x="260" y="80" width="26" height="24" fill="#cfe0f3" stroke="#777"/>
 <rect x="286" y="80" width="26" height="24" fill="#cfe0f3" stroke="#777"/>
 <rect x="312" y="80" width="26" height="24" fill="#cfe0f3" stroke="#777"/>
@@ -57,12 +57,12 @@
 <text x="364" y="310" text-anchor="middle" font-size="13" fill="#222">c50 += a5·b0</text>
 <rect x="468" y="290" width="208" height="30" fill="#dcefd6" stroke="#777"/>
 <text x="572" y="310" text-anchor="middle" font-size="13" fill="#222">c51 += a5·b1</text>
-<text x="227" y="112" text-anchor="middle" font-size="12" fill="#222">A广播</text>
-<text x="40" y="140" text-anchor="start" font-size="14" fill="#222" font-weight="bold">16个YMM寄存器：</text>
-<text x="40" y="165" text-anchor="start" font-size="14" fill="#222">12个C累加器</text>
-<text x="40" y="188" text-anchor="start" font-size="14" fill="#222">2个B向量</text>
-<text x="40" y="211" text-anchor="start" font-size="14" fill="#222">1个A广播</text>
-<text x="40" y="234" text-anchor="start" font-size="14" fill="#222">1个余量供调度</text>
-<text x="430" y="345" text-anchor="middle" font-size="14" fill="#222">每k步：2次B加载 + 6次广播 + 12次FMA = 192 FLOPs</text>
-<text x="430" y="368" text-anchor="middle" font-size="13" fill="#555">Zen3每周期2条256位FMA = 32 FLOPs，理论下限每k步6周期，加载与广播走另外的端口</text>
+<text x="227" y="112" text-anchor="middle" font-size="12" fill="#222">A broadcast</text>
+<text x="40" y="140" text-anchor="start" font-size="14" fill="#222" font-weight="bold">16 YMM registers:</text>
+<text x="40" y="165" text-anchor="start" font-size="14" fill="#222">12 C accumulators</text>
+<text x="40" y="188" text-anchor="start" font-size="14" fill="#222">2 B vectors</text>
+<text x="40" y="211" text-anchor="start" font-size="14" fill="#222">1 A broadcast</text>
+<text x="40" y="234" text-anchor="start" font-size="14" fill="#222">1 spare for scheduling</text>
+<text x="430" y="345" text-anchor="middle" font-size="14" fill="#222">Per k-step: 2 B loads + 6 broadcasts + 12 FMA = 192 FLOPs</text>
+<text x="430" y="368" text-anchor="middle" font-size="13" fill="#555">Zen3: 2 256-bit FMA per cycle = 32 FLOPs, theoretical floor 6 cycles per k-step, loads and broadcasts use other ports</text>
 </svg>

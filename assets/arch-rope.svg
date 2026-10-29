@@ -1,18 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="920" height="300" viewBox="0 0 920 300" font-family="Microsoft YaHei, PingFang SC, Noto Sans CJK SC, sans-serif" font-size="14" fill="#1f2933">
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="300" viewBox="0 0 920 300" font-family="Helvetica, Arial, sans-serif" font-size="14" fill="#1f2933">
 <defs>
 <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#52606d"/></marker>
 </defs>
 <rect x="0" y="0" width="920" height="300" fill="#fafbfc"/>
-<text x="460" y="34" text-anchor="middle" font-size="20" font-weight="bold">Timestral-5M单头64维的部分RoPE布局</text>
+<text x="460" y="34" text-anchor="middle" font-size="20" font-weight="bold">Partial RoPE Layout for Timestral-5M (64-dim head)</text>
 <rect x="76" y="130" width="192" height="36" fill="#f6c56b" stroke="#7b8794"/>
-<text x="172" y="190" text-anchor="middle" font-size="13" fill="#1f2933">旋转 0–15</text>
+<text x="172" y="190" text-anchor="middle" font-size="13" fill="#1f2933">Rotated 0-15</text>
 <rect x="268" y="130" width="192" height="36" fill="#e4e7eb" stroke="#7b8794"/>
-<text x="364" y="190" text-anchor="middle" font-size="13" fill="#1f2933">不旋转 16–31</text>
+<text x="364" y="190" text-anchor="middle" font-size="13" fill="#1f2933">Not rotated 16-31</text>
 <rect x="460" y="130" width="192" height="36" fill="#f6c56b" stroke="#7b8794"/>
-<text x="556" y="190" text-anchor="middle" font-size="13" fill="#1f2933">旋转 32–47</text>
+<text x="556" y="190" text-anchor="middle" font-size="13" fill="#1f2933">Rotated 32-47</text>
 <rect x="652" y="130" width="192" height="36" fill="#e4e7eb" stroke="#7b8794"/>
-<text x="748" y="190" text-anchor="middle" font-size="13" fill="#1f2933">不旋转 48–63</text>
+<text x="748" y="190" text-anchor="middle" font-size="13" fill="#1f2933">Not rotated 48-63</text>
 <line x1="88" y1="130" x2="88" y2="166" stroke="#ffffff" stroke-width="1"/>
 <line x1="100" y1="130" x2="100" y2="166" stroke="#ffffff" stroke-width="1"/>
 <line x1="112" y1="130" x2="112" y2="166" stroke="#ffffff" stroke-width="1"/>
@@ -80,7 +80,7 @@
 <text x="844" y="122" text-anchor="middle" font-size="11" fill="#3e4c59">64</text>
 <path d="M82,112 Q274,60 466,112" fill="none" stroke="#c05621" stroke-width="1.6"/>
 <path d="M262,112 Q454,70 646,112" fill="none" stroke="#c05621" stroke-width="1.6"/>
-<text x="364" y="76" text-anchor="middle" font-size="13" fill="#c05621">第j维与第j+32维成对旋转，j = 0…15</text>
-<text x="460" y="240" text-anchor="middle" font-size="13" fill="#3e4c59">ropeDim = headDim × rope_partial_factor = 64 × 0.5 = 32，第j对的角度 = 位置 × 10000^(−2j/32)</text>
-<text x="460" y="266" text-anchor="middle" font-size="13" fill="#3e4c59">只在time轴子层对Q、K施加，V与variate轴不旋转；发布权重的QKV先从(qkv, headDim, head)重排为(head, headDim)</text>
+<text x="364" y="76" text-anchor="middle" font-size="13" fill="#c05621">Dim j paired with dim j+32, j = 0..15</text>
+<text x="460" y="240" text-anchor="middle" font-size="13" fill="#3e4c59">ropeDim = headDim x rope_partial_factor = 64 x 0.5 = 32, angle of pair j = position x 10000^(-2j/32)</text>
+<text x="460" y="266" text-anchor="middle" font-size="13" fill="#3e4c59">Applied to Q and K in time-axis sublayers only; V and variate axis are not rotated. Released QKV is rearranged from (qkv, headDim, head) to (head, headDim)</text>
 </svg>
