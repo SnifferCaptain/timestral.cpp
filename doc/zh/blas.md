@@ -249,7 +249,7 @@ exp微基准的耗时取每轮15次中的最小值，输入4096个、范围[−2
 | CPU/OS检测 | [cpuX86.cpp](<../../timestral/blas/cpuX86.cpp>) |
 | 复现吞吐与公式 | 本地工具blasBench与blasProfile（不入库） |
 
-BLIS参考固定提交[e8566eb3](<https://github.com/flame/blis/tree/e8566eb3e773fb54d11b33e371d13f22d2941e50>)，具体读过的设计与源码见本地研究记录。在线softmax可对照[FlashAttention](<https://arxiv.org/abs/2205.14135>)与[FlashAttention-2](<https://arxiv.org/abs/2307.08691>)，本实现借用分块与在线归约思想，不声称复刻GPU的warp调度、异步流水线或相同的性能特征。教程的“基本问题→数学结构→工程改进→取舍”写法参考[tdt-nav-kit固定版本](<https://github.com/T-DT-Algorithm-2026/tdt-nav-kit/tree/814d5ce0237acc7faa8c070e5c5e61e2ddc81996>)，图由本项目重新绘制。
+BLIS参考固定提交[e8566eb3](<https://github.com/flame/blis/tree/e8566eb3e773fb54d11b33e371d13f22d2941e50>)，具体读过的设计与源码见本地研究记录。在线softmax可对照[FlashAttention](<https://arxiv.org/abs/2205.14135>)与[FlashAttention-2](<https://arxiv.org/abs/2307.08691>)，本实现借用分块与在线归约思想，不声称复刻GPU的warp调度、异步流水线或相同的性能特征。
 
 ## 后续路线
 

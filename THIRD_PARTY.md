@@ -37,6 +37,4 @@ The six exp2f polynomial coefficients in the [vector exp](<timestral/blas/elemen
 
 ## Style Reference
 
-Directory layout and prose style follow [tdt-nav-kit](<https://github.com/T-DT-Algorithm-2026/tdt-nav-kit/tree/814d5ce0237acc7faa8c070e5c5e61e2ddc81996>); none of its navigation algorithms, assets or external dependencies were copied.
-
 The repository-wide license is [LICENSE](<LICENSE>). Each third-party component keeps its own license with its files: Eigen full texts in 3rd/eigen/, the upstream Apache-2.0 text in [LICENSES/LICENSE.timestral](<LICENSES/LICENSE.timestral>), and the Cephes notice in the source file header and [LICENSES/LICENSE.cephes](<LICENSES/LICENSE.cephes>).

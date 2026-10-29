@@ -249,7 +249,7 @@ The final default, Eigen, and ytensor builds pass 25/25 each, and the BLAS AVX2 
 | CPU/OS detection | [cpuX86.cpp](<../../timestral/blas/cpuX86.cpp>) |
 | reproducing throughput and formulas | local tools blasBench and blasProfile (not checked in) |
 
-BLIS is pinned to commit [e8566eb3](<https://github.com/flame/blis/tree/e8566eb3e773fb54d11b33e371d13f22d2941e50>); for the specific designs and source code read, see the local research records. Online softmax can be compared against [FlashAttention](<https://arxiv.org/abs/2205.14135>) and [FlashAttention-2](<https://arxiv.org/abs/2307.08691>); this implementation borrows the blocking and online reduction ideas, and does not claim to replicate the GPU's warp scheduling, asynchronous pipeline, or the same performance characteristics. The tutorial's "basic problem → mathematical structure → engineering improvement → trade-off" writing style references [the pinned tdt-nav-kit version](<https://github.com/T-DT-Algorithm-2026/tdt-nav-kit/tree/814d5ce0237acc7faa8c070e5c5e61e2ddc81996>); the figures were redrawn for this project.
+BLIS is pinned to commit [e8566eb3](<https://github.com/flame/blis/tree/e8566eb3e773fb54d11b33e371d13f22d2941e50>); for the specific designs and source code read, see the local research records. Online softmax can be compared against [FlashAttention](<https://arxiv.org/abs/2205.14135>) and [FlashAttention-2](<https://arxiv.org/abs/2307.08691>); this implementation borrows the blocking and online reduction ideas, and does not claim to replicate the GPU's warp scheduling, asynchronous pipeline, or the same performance characteristics.
 
 ## Future Roadmap
 

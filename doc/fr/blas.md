@@ -249,7 +249,7 @@ Builds par défaut final, Eigen, ytensor 25/25 chacun, build BLAS AVX2 29/29, au
 | Détection CPU/OS | [cpuX86.cpp](<../../timestral/blas/cpuX86.cpp>) |
 | Reproduction du débit et des formules | Outils locaux blasBench et blasProfile (non versionnés) |
 
-BLIS référence le commit figé [e8566eb3](<https://github.com/flame/blis/tree/e8566eb3e773fb54d11b33e371d13f22d2941e50>) ; les conceptions et sources concrètes lues sont dans les notes de recherche locales. Le softmax en ligne peut être comparé à [FlashAttention](<https://arxiv.org/abs/2205.14135>) et [FlashAttention-2](<https://arxiv.org/abs/2307.08691>) ; cette implémentation emprunte la pensée par blocs et la réduction en ligne, sans prétendre reproduire la planification warp du GPU, le pipeline asynchrone ou des caractéristiques de performance identiques. L'écriture du tutoriel « problème de base → structure mathématique → amélioration d'ingénierie → arbitrage » s'inspire de [tdt-nav-kit version figée](<https://github.com/T-DT-Algorithm-2026/tdt-nav-kit/tree/814d5ce0237acc7faa8c070e5c5e61e2ddc81996>) ; les figures sont redessinées par ce projet.
+BLIS référence le commit figé [e8566eb3](<https://github.com/flame/blis/tree/e8566eb3e773fb54d11b33e371d13f22d2941e50>) ; les conceptions et sources concrètes lues sont dans les notes de recherche locales. Le softmax en ligne peut être comparé à [FlashAttention](<https://arxiv.org/abs/2205.14135>) et [FlashAttention-2](<https://arxiv.org/abs/2307.08691>) ; cette implémentation emprunte la pensée par blocs et la réduction en ligne, sans prétendre reproduire la planification warp du GPU, le pipeline asynchrone ou des caractéristiques de performance identiques.
 
 ## Route de suivi
 
